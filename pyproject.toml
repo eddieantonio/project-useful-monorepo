@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "project-useful-monorepo"
+version = "0.1.0"
+description = "Project Useful"
+authors = ["Eddie Antonio Santos <eddie.santos@ucdconnect.ie>"]
+license = "AGPL-3.0-or-later"
+readme = "README.md"
+packages = [{include = "project_useful_monorepo"}, {include = "project_antipatterns"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.3.0"
+isort = "^5.12.0"
+mypy = "^1.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

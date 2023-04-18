@@ -1,0 +1,11 @@
+# Python stuff
+*.py[co]
+__pycache__/
+
+# Editor junk
+.vscode/
+
+# Data
+*.sqlite3
+*.zst
+*.gz
