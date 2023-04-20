@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+
+import sys
+import xml.etree.ElementTree as ET
+
+RED = "\x1b[31m"
+BOLD = "\x1b[1m"
+RESET = "\x1b[m"
+GREY = "\x1b[38:5:243m"
+
+filename = sys.argv[1]
+
+def to_python_bool(value: str) -> bool:
+    normalized_value = value.lower()
+    if normalized_value == "true":
+        return True
+    elif normalized_value == "false":
+        return False
+    else:
+        raise ValueError(f"Does not look like a bool: {value!r}")
+
+
+root = ET.parse(filename).getroot()
+units = root.findall('./unit')
+for i, unit in enumerate(units, start=1):
+    version = unit.attrib['version']
+    compile_success = to_python_bool(unit.attrib['compile-success'])
+    color = GREY if compile_success else BOLD + RED
+    print(f"{color}{i:>2d}. {version} {compile_success}{RESET}")
