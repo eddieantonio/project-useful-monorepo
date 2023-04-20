@@ -8,7 +8,6 @@ Mini.
 import sqlite3
 
 from project_antipatterns.enrich_database import register_helpers
-from top_errors import register_is_top_error
 
 SCHEMA = """
 CREATE TABLE messages(
@@ -84,9 +83,8 @@ with conn:
 
 conn.execute('ATTACH DATABASE "errors.sqlite3" AS original')
 
-# Adds sanitize_message() and javac_name() helpers
+# Adds sanitize_message() and javac_name() helpers:
 register_helpers(conn)
-register_is_top_error(conn)
 
 with conn:
     # INSERT OR IGNORE because there is ONE duplicate srcml_path, version pair
