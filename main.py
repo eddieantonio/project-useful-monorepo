@@ -3,26 +3,28 @@ import sqlite3
 from project_antipatterns.enrich_database import register_helpers
 from top_errors import register_is_top_error
 
+SCHEMA = """
+CREATE TABLE messages(
+    srcml_path TEXT,
+    version INT,
+    start TEXT,
+    end TEXT,
+    text TEXT,
+    sanitised_text TEXT,
+    javac_name TEXT,
+
+    PRIMARY KEY("srcml_path","version")
+);
+"""
+
 
 def main():
     conn = sqlite3.connect("useful.sqlite3")
 
-    with conn:
-        conn.execute(
-            """CREATE TABLE messages(
-            srcml_path TEXT,
-            version INT,
-            start TEXT,
-            end TEXT,
-            text TEXT,
-            sanitised_text TEXT,
-            javac_name TEXT
-        )"""
-        )
-
+    conn.executescript(SCHEMA)
     conn.execute('ATTACH DATABASE "errors.sqlite3" AS original')
 
-    # Adds sanitize_message() javac_name() helpers
+    # Adds sanitize_message() and javac_name() helpers
     register_helpers(conn)
     register_is_top_error(conn)
 
