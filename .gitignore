@@ -7,5 +7,7 @@ __pycache__/
 
 # Data
 *.sqlite3
+*.pickle
 *.zst
 *.gz
+*.xz
