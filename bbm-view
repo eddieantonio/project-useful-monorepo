@@ -71,17 +71,37 @@ def determine_first_line_number(unit):
     return Position.from_attribute(first_element.attrib['start']).line
 
 
+def determine_file_name(unit):
+    "Figure out what the source code filename is."
+    class_name_element = unit.find('./class/name')
+
+    UNKNOWN = "<unknown>"
+
+    # No class name -- unable to determine the filename.
+    if class_name_element is None:
+        return UNKNOWN
+
+    if class_name_element.text is not None:
+        class_name = class_name_element.text
+    else:
+        # This might be a generic like Class<Name>. In which case, there will be a nexted name:
+        base_name_element = class_name_element.find('./name')
+        if base_name_element is None:
+            # I don't know what this is:
+            return UNKNOWN
+        
+        assert base_name_element.text is not None
+        class_name = base_name_element.text
+        
+    # <name>ClassName </name> includes whitespace, so get rid of it:
+    class_name = class_name.strip()
+    return f"{class_name}.java"
+
+
 root = ET.parse(filename).getroot()
 unit = find_requested_version(root)
 unit_with_compiler_errors = copy.deepcopy(unit)
-
-# Figure out what the source code filename is.
-class_name_element = unit.find('./class/name')
-if class_name_element is not None:
-    class_name = class_name_element.text.strip()
-    filename = f"{class_name}.java"
-else:
-    filename = "<unknown>"
+filename = determine_file_name(unit)
 
 # Get rid of the compiler errors from the version we want to print:
 for pem in unit.findall('./compile-error'):
