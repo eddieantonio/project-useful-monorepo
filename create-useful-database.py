@@ -92,7 +92,7 @@ with conn:
     conn.execute(
         """
         INSERT OR IGNORE INTO messages
-            SELECT srcml_path, version, start, end, text, sanitize_message(text), javac_name(text)
+            SELECT srcml_path, version, start, end, text, sanitize_message(text), parameterized_javac_name(text)
             FROM original.messages JOIN top_messages
                 ON top_messages.identifier = COALESCE(parameterized_javac_name(text), sanitize_message(text))
             WHERE original.messages.rank = 1
