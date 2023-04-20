@@ -73,41 +73,36 @@ SELECT sanitized_text,
 """
 
 
-def main():
-    conn = sqlite3.connect("useful.sqlite3")
-    conn.executescript(SCHEMA)
+conn = sqlite3.connect("useful.sqlite3")
+conn.executescript(SCHEMA)
 
-    with conn:
-        conn.executemany(
-            "INSERT INTO top_messages VALUES (?, ?)",
-            TOP_ERRORS,
-        )
+with conn:
+    conn.executemany(
+        "INSERT INTO top_messages VALUES (?, ?)",
+        TOP_ERRORS,
+    )
 
-    conn.execute('ATTACH DATABASE "errors.sqlite3" AS original')
+conn.execute('ATTACH DATABASE "errors.sqlite3" AS original')
 
-    # Adds sanitize_message() and javac_name() helpers
-    register_helpers(conn)
-    register_is_top_error(conn)
+# Adds sanitize_message() and javac_name() helpers
+register_helpers(conn)
+register_is_top_error(conn)
 
-    with conn:
-        # INSERT OR IGNORE because there is ONE duplicate srcml_path, version pair
-        # Namely /data/mini/srcml-2013-06/project-4425/src-12277.xml version 209269
-        conn.execute(
-            """
-            INSERT OR IGNORE INTO messages
-                SELECT srcml_path, version, start, end, text, sanitize_message(text), javac_name(text)
-                FROM original.messages JOIN top_messages
-                  ON top_messages.identifier = COALESCE(parameterized_javac_name(text), sanitize_message(text))
-               WHERE original.messages.rank = 1
-            """
-        )
+with conn:
+    # INSERT OR IGNORE because there is ONE duplicate srcml_path, version pair
+    # Namely /data/mini/srcml-2013-06/project-4425/src-12277.xml version 209269
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO messages
+            SELECT srcml_path, version, start, end, text, sanitize_message(text), javac_name(text)
+            FROM original.messages JOIN top_messages
+                ON top_messages.identifier = COALESCE(parameterized_javac_name(text), sanitize_message(text))
+            WHERE original.messages.rank = 1
+        """
+    )
 
-    # Make sure we actually have the error messages we wanted.
-    distinct_messages = conn.execute(
-        "SELECT COUNT(DISTINCT sanitized_text) FROM messages"
-    ).fetchone()[0]
-    assert distinct_messages == len(TOP_ERRORS)
-
-
-if __name__ == "__main__":
-    main()
+# Make sure we actually have the error messages we wanted.
+distinct_messages = conn.execute(
+    "SELECT COUNT(DISTINCT sanitized_text) FROM messages"
+).fetchone()[0]
+assert distinct_messages == len(TOP_ERRORS)
