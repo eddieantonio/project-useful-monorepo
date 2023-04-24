@@ -43,13 +43,14 @@ collected during [project-antipatterns].
    induce that PEM.
  * `sample-pem-index.py` -- reads `pem-index.pickle` and prints a small
    sample of files/versions that induce a PEM category
+ - `pickle-sample.py` 
 
 # Other info
 
 I have copy-pasted a few files from [project-antipatterns], which is in
 the `project_antipatterns` package.
 
-[project-antipatterns]: https://github.com/eddieantonio/project-antipatterns>
+[project-antipatterns]: https://github.com/eddieantonio/project-antipatterns
 
 # Copyright
 

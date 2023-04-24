@@ -1,11 +1,30 @@
 #!/usr/bin/env python3
 
+"""
+pickle-sample.py -- pickles the source code of a sample of scenarios
+
+SYNOPSIS
+    pickle-sample.py
+
+REQUIREMENTS:
+    sample.tsv
+
+DESCRIPTION:
+
+    This will read sample.tsv for a series of scenarios, and create a Python pickle file
+    that contains the full source code of that scenario.
+
+SEE ALSO:
+    sample-pem.index.py -- creates sample.tsv
+"""
+
+
 import copy
 import pickle
 import sys
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
 from collections import defaultdict
+from dataclasses import dataclass
 
 # Only show the top error:
 MAX_ERRORS = 1
@@ -16,6 +35,7 @@ RESET = "\x1b[m"
 GREY = "\x1b[38:5:243m"
 
 UNKNOWN = "<unknown>"
+
 
 @dataclass
 class Position:
@@ -43,22 +63,24 @@ class JavaCompilerError:
     def from_element(cls, element, filename="<unknown>"):
         "Parse an compiler error from a <compile-error> XML element."
         return cls(
-                text=element.text,
-                filename=filename,
-                start=Position.from_attribute(element.attrib['start']),
-                end=Position.from_attribute(element.attrib['end']),
+            text=element.text,
+            filename=filename,
+            start=Position.from_attribute(element.attrib["start"]),
+            end=Position.from_attribute(element.attrib["end"]),
         )
 
 
 def find_requested_version(root, version: str):
     versions_available = []
 
-    for unit in root.findall('./unit'):
-        unit_version = unit.attrib['version']
+    for unit in root.findall("./unit"):
+        unit_version = unit.attrib["version"]
         if version == unit_version:
             return unit
         versions_available.append(unit_version)
-    raise KeyError(f"Could not find version {version}. Versions available: {versions_available}")
+    raise KeyError(
+        f"Could not find version {version}. Versions available: {versions_available}"
+    )
 
 
 def determine_first_line_number(unit):
@@ -68,12 +90,12 @@ def determine_first_line_number(unit):
         # The file is empty. Just pretend the file starts on line 1.
         return 1
 
-    return Position.from_attribute(first_element.attrib['start']).line
+    return Position.from_attribute(first_element.attrib["start"]).line
 
 
 def determine_file_name(unit):
     "Figure out what the source code filename is."
-    class_name_element = unit.find('./class/name')
+    class_name_element = unit.find("./class/name")
 
     # No class name -- unable to determine the filename.
     if class_name_element is None:
@@ -83,14 +105,14 @@ def determine_file_name(unit):
         class_name = class_name_element.text
     else:
         # This might be a generic like Class<Name>. In which case, there will be a nexted name:
-        base_name_element = class_name_element.find('./name')
+        base_name_element = class_name_element.find("./name")
         if base_name_element is None:
             # I don't know what this is:
             return UNKNOWN
-        
+
         assert base_name_element.text is not None
         class_name = base_name_element.text
-        
+
     # <name>ClassName </name> includes whitespace, so get rid of it:
     class_name = class_name.strip()
     return f"{class_name}.java"
@@ -98,19 +120,19 @@ def determine_file_name(unit):
 
 def show_file(filename: str, version: str):
     root = ET.parse(filename).getroot()
-    unit = find_requested_version(root)
+    unit = find_requested_version(root, version)
     unit_with_compiler_errors = copy.deepcopy(unit)
     filename = determine_file_name(unit)
 
     # Get rid of the compiler errors from the version we want to print:
-    for pem in unit.findall('./compile-error'):
+    for pem in unit.findall("./compile-error"):
         unit.remove(pem)
 
     pems_per_line = defaultdict(list)
 
     # Group PEMs per each source line of code that they're on
     pems_seen = 0
-    pems = unit_with_compiler_errors.findall('./compile-error')
+    pems = unit_with_compiler_errors.findall("./compile-error")
     for pem_element in pems:
         pem = JavaCompilerError.from_element(pem_element, filename)
         pems_per_line[pem.start.line].append(pem)
@@ -121,7 +143,7 @@ def show_file(filename: str, version: str):
     # Need to add empty lines before the first actual line number in the file, or else the
     # line numbering will be off.
     first_line_number = determine_first_line_number(unit)
-    preceding_empty_lines = [''] * (first_line_number - 1)
+    preceding_empty_lines = [""] * (first_line_number - 1)
 
     source_code = "".join(unit.itertext())
     source_lines = preceding_empty_lines + source_code.splitlines()
@@ -145,17 +167,17 @@ def show_file(filename: str, version: str):
 
         # columns are 1-indexed (annoyingly):
         padding = (pem.start.column - 1) * " "
-        margin = ' ' * biggest_line_no_width
+        margin = " " * biggest_line_no_width
 
         if pem.start.line == pem.end.line:
-            marker = '^' * max(1, pem.end.column - pem.start.column)
+            marker = "^" * max(1, pem.end.column - pem.start.column)
         else:
-            marker = '^'
+            marker = "^"
         print(f"{margin} | {padding}{marker}")
         print(f"{margin} |")
 
 
-def get_source_code(xml_filename: str, version: str) -> str:
+def get_source_code(xml_filename: str, version: str):
     """
     Gets the source code for a filename and version from Blackbox mini.
     """
@@ -165,13 +187,13 @@ def get_source_code(xml_filename: str, version: str) -> str:
     filename = determine_file_name(unit)
 
     # Get rid of the compiler errors from the version we want to print:
-    for pem in unit.findall('./compile-error'):
+    for pem in unit.findall("./compile-error"):
         unit.remove(pem)
 
     # Need to add empty lines before the first actual line number in the file, or else the
     # line numbering will be off.
     first_line_number = determine_first_line_number(unit)
-    preceding_empty_lines = [''] * (first_line_number - 1)
+    preceding_empty_lines = [""] * (first_line_number - 1)
 
     source_code = "".join(unit.itertext())
     return source_code, filename
@@ -186,13 +208,15 @@ with open("sample.tsv") as sample_tsv:
         if filename == UNKNOWN:
             filename = None
 
-        sample_with_source_code.append(dict(
-            pem_category=pem_category,
-            filename=filename,
-            xml_filename=filename,
-            version=version,
-            source_code=source_code,
-        ))
+        sample_with_source_code.append(
+            dict(
+                pem_category=pem_category,
+                filename=filename,
+                xml_filename=filename,
+                version=version,
+                source_code=source_code,
+            )
+        )
 
 with open("sample.pickle", "wb") as sample_pickle:
     pickle.dump(sample_with_source_code, sample_pickle)
