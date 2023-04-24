@@ -6,6 +6,7 @@ __pycache__/
 .vscode/
 
 # Data
+*.tsv
 *.sqlite3
 *.pickle
 *.zst

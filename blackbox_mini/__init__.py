@@ -9,6 +9,8 @@ import os
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from dataclasses import dataclass
+from functools import cached_property
+from typing import List
 
 # Unknown filename.
 UNKNOWN = "<unknown>"
@@ -17,26 +19,39 @@ UNKNOWN = "<unknown>"
 MAX_ERRORS = 1
 
 
-"""
+@dataclass
 class JavaUnit:
-    def __init__(self, unit, pems):
-        self._unit = unit
-        self._pems = pems
+    unit: ET.Element
+    filename: str
+    pems: List[JavaCompilerError]
 
-    def from_path_and_version(path: os.PathLike, version: str) -> JavaUnit:
-        root = ET.parse(os.fspath(filename)).getroot()
+    @staticmethod
+    def from_path_and_version(srcml_path: os.PathLike, version: str) -> JavaUnit:
+        """
+        Return a Java unit from its srcml path and version.
+        """
+        root = ET.parse(os.fspath(srcml_path)).getroot()
+        unit = find_requested_version(root, version)
 
-        versions_available = []
-        for unit in root.findall("./unit"):
-            unit_version = unit.attrib["version"]
-            if version == unit_version:
-                return unit
-            versions_available.append(unit_version)
+        filename = determine_file_name(unit)
 
-        raise KeyError(
-            f"Could not find version {version}. Versions available: {versions_available}"
-        )
-"""
+        # Get rid of the compiler errors, but add them to our data structure.
+        pems = []
+        for pem_element in unit.findall("./compile-error"):
+            pems.append(JavaCompilerError.from_element(pem_element, filename))
+            unit.remove(pem_element)
+
+        return JavaUnit(unit=unit, filename=filename, pems=pems)
+
+    @cached_property
+    def source_code(self) -> str:
+        # Need to add empty lines before the first actual line number in the file, or else the
+        # line numbering will be off.
+        first_line_number = determine_first_line_number(self.unit)
+        preceding_empty_lines = [""] * (first_line_number - 1)
+
+        source_code = "".join(self.unit.itertext())
+        return source_code
 
 
 @dataclass
@@ -82,6 +97,8 @@ def find_requested_version(root, version: str):
         if version == unit_version:
             return unit
         versions_available.append(unit_version)
+
+    # TODO: return a module internal error for this:
     raise KeyError(
         f"Could not find version {version}. Versions available: {versions_available}"
     )

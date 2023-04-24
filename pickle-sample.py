@@ -21,25 +21,19 @@ SEE ALSO:
 
 import pickle
 
-from blackbox_mini import get_source_code, UNKNOWN
+from blackbox_mini import JavaUnit
 
 
 sample_with_source_code = []
 with open("sample.tsv") as sample_tsv:
     for line in sample_tsv:
         pem_category, xml_filename, version = line.rstrip().split("\t")
-        source_code, filename = get_source_code(xml_filename, version)
-
-        if filename == UNKNOWN:
-            filename = None
-
+        unit = JavaUnit.from_path_and_version(xml_filename, version)
         sample_with_source_code.append(
             dict(
                 pem_category=pem_category,
-                filename=filename,
-                xml_filename=filename,
-                version=version,
-                source_code=source_code,
+                xml_filename=xml_filename,
+                unit=unit
             )
         )
 
