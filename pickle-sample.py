@@ -26,6 +26,8 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict
 from dataclasses import dataclass
 
+from blackbox_mini import JavaCompilerError
+
 # Only show the top error:
 MAX_ERRORS = 1
 
@@ -35,39 +37,6 @@ RESET = "\x1b[m"
 GREY = "\x1b[38:5:243m"
 
 UNKNOWN = "<unknown>"
-
-
-@dataclass
-class Position:
-    "A position in the source code file."
-    line: int
-    column: int
-
-    @classmethod
-    def from_attribute(cls, attribute):
-        "Parse a position from either an start='' or end='' XML attribute."
-        return cls(*(int(x) for x in attribute.split(":")))
-
-
-@dataclass
-class JavaCompilerError:
-    filename: str
-    text: str
-    start: Position
-    end: Position
-
-    def print(self):
-        print(f"{RED}{self.filename}:{self.start.line}: error: {self.text}{RESET}")
-
-    @classmethod
-    def from_element(cls, element, filename="<unknown>"):
-        "Parse an compiler error from a <compile-error> XML element."
-        return cls(
-            text=element.text,
-            filename=filename,
-            start=Position.from_attribute(element.attrib["start"]),
-            end=Position.from_attribute(element.attrib["end"]),
-        )
 
 
 def find_requested_version(root, version: str):

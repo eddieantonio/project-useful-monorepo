@@ -52,6 +52,13 @@ the `project_antipatterns` package.
 
 [project-antipatterns]: https://github.com/eddieantonio/project-antipatterns
 
+# Glossary
+
+ - **scenario**: a _unit_ with at least one programming error message
+   produced by `javac`.
+ - **unit**: a Java source code file at a particular version
+ - **sample**: a random sample of eligible scenarios
+
 # Copyright
 
 All code Copyright © 2022, 2023 Eddie Antonio Santos. AGPL-3.0 Licensed.

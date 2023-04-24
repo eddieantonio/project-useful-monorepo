@@ -5,7 +5,10 @@ description = "Project Useful"
 authors = ["Eddie Antonio Santos <eddie.santos@ucdconnect.ie>"]
 license = "AGPL-3.0-or-later"
 readme = "README.md"
-packages = [{include = "project_useful_monorepo"}, {include = "project_antipatterns"}]
+packages = [
+    {include = "project_antipatterns"},
+    {include = "blackbox_mini"},
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
