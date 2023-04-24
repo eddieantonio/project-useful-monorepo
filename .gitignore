@@ -1,3 +1,6 @@
+# Confidential data
+.env
+
 # Python stuff
 *.py[co]
 __pycache__/
@@ -12,3 +15,6 @@ __pycache__/
 *.zst
 *.gz
 *.xz
+
+# The data structures that the OpenAI API stuff creates:
+llm/
