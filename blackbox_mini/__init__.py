@@ -59,10 +59,14 @@ class JavaCompilerError:
     """
     A programming error message, as recorded by BlueJ and javac.
     """
+
     filename: str
     text: str
     start: Position
     end: Position
+
+    def __str__(self) -> str:
+        return f"{self.filename}:{self.start.line}: error: {self.text}"
 
     @classmethod
     def from_element(cls, element, filename: str = "<unknown>") -> JavaCompilerError:
@@ -80,6 +84,7 @@ class Position:
     """
     A position in the source code file.
     """
+
     line: int
     column: int
 

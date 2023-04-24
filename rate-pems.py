@@ -47,7 +47,7 @@ for line_no, line in enumerate(source_lines, start=1):
         continue
 
     # Priting the error message:
-    print(f"{RED}{pem.filename}:{pem.start.line}: error: {pem.text}{RESET}")
+    print(f"{RED}{pem!s}{RESET}")
     print(f"{BOLD}{RED}{line_no:>{biggest_line_no_width}}{RESET} | {line}")
 
     # columns are 1-indexed (annoyingly):
