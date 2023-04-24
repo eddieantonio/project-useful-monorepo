@@ -13,14 +13,15 @@ OUTPUTS:
         code-only/
             {n}-{message_id}.json
         code-and-context/
-            {n}-{message_id}.json
+            {n}-{message_id}/
+                {k}-{src}-{version}.json
 """
 
 import os
 import sys
 import pickle
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from itertools import groupby
 
 import openai
@@ -84,54 +85,119 @@ LLM_DIR = here / "llm"
 LLM_DIR.mkdir(exist_ok=True)
 CODE_ONLY_DIR = LLM_DIR / "code-only"
 CODE_ONLY_DIR.mkdir(exist_ok=True)
+CODE_AND_CONTEXT_DIR = LLM_DIR / "code-and-context"
+CODE_AND_CONTEXT_DIR.mkdir(exist_ok=True)
 
-for n, (category, group) in tqdm(
-    enumerate(groupby(scenarios, key=lambda s: s["pem_category"]), start=1)
-):
-    scenario = next(group)
-    code = scenario["unit"].source_code
-    pem = scenario["unit"].pems[0]
-    # Annoyingly, I started calling the scrml_path "xml_filename" while creating a sample:
-    srcml_path = scenario["xml_filename"]
-    version = scenario["version"]
 
-    request = dict(
-        model=MODEL,
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": make_prompt_for_error(pem)},
-        ],
-        temperature=0,
-    )
-    response = openai.ChatCompletion.create(**request)
+def by_pem_category(scenario):
+    return scenario["pem_category"]
 
-    with open(CODE_ONLY_DIR / f"{n}-{category}.json", "w") as f:
-        # Provide enough information to reconstruct the original scenario:
-        json.dump(
-            dict(
-                type="code-only",
-                # Although these results are (sort of) independent of the exact source file and error,
-                # it's useful to know exactly which file induced this error, particularly for the
-                # error messages that have an identifier in them, e.g., cannot find symbol  -  variable foo
-                srcml_path=srcml_path,
-                version=version,
-                pem_category=category,
-                request=request,
-                response=response.to_dict(),
-            ),
-            f,
+
+def collect_error_only_responses():
+    """
+    Collect resposnes from OpenAI for **JUST** the error message.
+
+    This requires far fewer API calls than collecting responses for the code and context.
+    """
+    for n, (category, group) in tqdm(
+        enumerate(groupby(scenarios, key=by_pem_category), start=1)
+    ):
+        json_filename = f"{n:02d}-{category}.json"
+        scenario = next(group)
+        pem = scenario["unit"].pems[0]
+        # Annoyingly, I started calling the scrml_path "xml_filename" while creating a sample:
+        srcml_path = scenario["xml_filename"]
+        version = scenario["version"]
+
+        request = dict(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": make_prompt_for_error(pem)},
+            ],
+            temperature=0,
+        )
+        response = openai.ChatCompletion.create(**request)
+
+        with open(CODE_ONLY_DIR / json_filename, "w") as json_file:
+            # Provide enough information to reconstruct the original scenario:
+            json.dump(
+                dict(
+                    type="code-and-context",
+                    # Although these results are (sort of) independent of the exact source file and error,
+                    # it's useful to know exactly which file induced this error, particularly for the
+                    # error messages that have an identifier in them, e.g., cannot find symbol  -  variable foo
+                    srcml_path=srcml_path,
+                    version=version,
+                    pem_category=category,
+                    request=request,
+                    response=response.to_dict(),
+                ),
+                json_file,
+            )
+
+
+def collect_code_and_context_responses() -> None:
+    """
+    Collect responses from OpenAI for the code and context.
+    """
+
+    def numbererd_scenarios():
+        "Enumerate each scenarios, grouping by category."
+        for n, (category, group) in enumerate(
+            groupby(scenarios, key=by_pem_category), start=1
+        ):
+            for k, scenario in enumerate(group, start=1):
+                yield n, k, category, scenario
+
+    for n, k, category, scenario in tqdm(numbererd_scenarios()):
+        code = scenario["unit"].source_code
+        pem = scenario["unit"].pems[0]
+
+        srcml_path = scenario["xml_filename"]
+        version = scenario["version"]
+        subdirectory_name = f"{n:02d}-{category}"
+        base_srcml_name = PurePosixPath(srcml_path).stem
+        json_filename = f"{k:02d}-{base_srcml_name}-{version}.json"
+
+        request = dict(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": make_prompt_with_context(code, pem)},
+            ],
+            temperature=0,
         )
 
+        subdirectory = CODE_AND_CONTEXT_DIR / subdirectory_name
+        subdirectory.mkdir(exist_ok=True)
 
-sys.exit(0)
+        response = openai.ChatCompletion.create(**request)
 
-with open("javac-error.pickle", "wb") as f:
-    pickle.dump(response, f)
+        with open(subdirectory / json_filename, "w") as json_file:
+            # Provide enough information to reconstruct the original scenario:
+            json.dump(
+                dict(
+                    type="code-only",
+                    # Although these results are (sort of) independent of the exact source file and error,
+                    # it's useful to know exactly which file induced this error, particularly for the
+                    # error messages that have an identifier in them, e.g., cannot find symbol  -  variable foo
+                    srcml_path=srcml_path,
+                    version=version,
+                    pem_category=category,
+                    request=request,
+                    response=response.to_dict(),
+                ),
+                json_file,
+            )
 
-with open("sample.pickle", "rb") as f:
-    scenarios = pickle.load(f)
 
-message_templates = {s["pem_category"] for s in scenarios}
-#
+# Collect responses for code-only prompts
+# When the marker exists, we assume that the responses have already been collected.
+marker = CODE_ONLY_DIR / ".finished-querying"
+if not marker.exists():
+    collect_error_only_responses()
+    marker.touch()
 
-# TODO: store in some kind of database
+# Collect responses for code and context prompts
+collect_code_and_context_responses()
