@@ -17,20 +17,18 @@ OUTPUTS:
                 {k}-{src}-{version}.json
 """
 
-import os
-import sys
-import pickle
 import json
-from pathlib import Path, PurePosixPath
+import os
+import pickle
+import sys
 from itertools import groupby
+from pathlib import Path, PurePosixPath
 
 import openai
 from dotenv import load_dotenv
 from tqdm import tqdm
 
 from blackbox_mini import JavaCompilerError
-
-here = Path(__file__).parent.resolve()
 
 # API key should be stored in .env or otherwise passed in as an environment variable:
 load_dotenv()
@@ -81,7 +79,8 @@ with open("sample.pickle", "rb") as f:
     scenarios = pickle.load(f)
 
 # Ensure the directory structure exists:
-LLM_DIR = here / "llm"
+HERE = Path(__file__).parent.resolve()
+LLM_DIR = HERE / "llm"
 LLM_DIR.mkdir(exist_ok=True)
 CODE_ONLY_DIR = LLM_DIR / "code-only"
 CODE_ONLY_DIR.mkdir(exist_ok=True)
@@ -93,9 +92,9 @@ def by_pem_category(scenario):
     return scenario["pem_category"]
 
 
-def collect_error_only_responses():
+def collect_error_only_responses() -> None:
     """
-    Collect resposnes from OpenAI for **JUST** the error message.
+    Collect resposnes from OpenAI for **JUST** the error messages.
 
     This requires far fewer API calls than collecting responses for the code and context.
     """
@@ -143,14 +142,20 @@ def collect_code_and_context_responses() -> None:
     """
 
     def numbererd_scenarios():
-        "Enumerate each scenarios, grouping by category."
+        """
+        Yield all scenarios. Each scenario includes its error message category,
+        its rank (n) and the scenario's index within its category (k).
+
+        I factored this out as a generator, because, although this could all
+        be done in one for loop, you don't want to see what that looks like!
+        """
         for n, (category, group) in enumerate(
             groupby(scenarios, key=by_pem_category), start=1
         ):
             for k, scenario in enumerate(group, start=1):
                 yield n, k, category, scenario
 
-    for n, k, category, scenario in tqdm(numbererd_scenarios()):
+    for n, k, category, scenario in tqdm(numbererd_scenarios(), total=len(scenarios)):
         code = scenario["unit"].source_code
         pem = scenario["unit"].pems[0]
 
@@ -201,3 +206,4 @@ if not marker.exists():
 
 # Collect responses for code and context prompts
 collect_code_and_context_responses()
+# TODO: use sets to confirm which scenarios have been completed and which still need to be queried.
