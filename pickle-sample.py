@@ -23,7 +23,6 @@ import pickle
 
 from blackbox_mini import JavaUnit
 
-
 sample_with_source_code = []
 with open("sample.tsv") as sample_tsv:
     for line in sample_tsv:
@@ -33,7 +32,8 @@ with open("sample.tsv") as sample_tsv:
             dict(
                 pem_category=pem_category,
                 xml_filename=xml_filename,
-                unit=unit
+                version=version,
+                unit=unit,
             )
         )
 
