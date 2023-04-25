@@ -809,6 +809,46 @@ slack = ["slack-sdk"]
 telegram = ["requests"]
 
 [[package]]
+name = "types-docutils"
+version = "0.19.1.7"
+description = "Typing stubs for docutils"
+category = "dev"
+optional = false
+python-versions = "*"
+files = [
+    {file = "types-docutils-0.19.1.7.tar.gz", hash = "sha256:cb6e0dd1c895c723002ec4dc8334bf9df04726ef0cf13f5597501578b47eef30"},
+    {file = "types_docutils-0.19.1.7-py3-none-any.whl", hash = "sha256:bbf89cf3b9460ce780434f8cc52ce846b0f14505ff3496fc6a17acd9967aee9e"},
+]
+
+[[package]]
+name = "types-pygments"
+version = "2.15.0.0"
+description = "Typing stubs for Pygments"
+category = "dev"
+optional = false
+python-versions = "*"
+files = [
+    {file = "types-Pygments-2.15.0.0.tar.gz", hash = "sha256:b5909267fe258dd00f3e65da8f098be30c0f7262805bef54e54eb69d75e2bc11"},
+    {file = "types_Pygments-2.15.0.0-py3-none-any.whl", hash = "sha256:40b0cc6925cdbafbec46c5b2d994a1219e264e9d44ea6ab5c76cb8b87e8257e1"},
+]
+
+[package.dependencies]
+types-docutils = "*"
+types-setuptools = "*"
+
+[[package]]
+name = "types-setuptools"
+version = "67.7.0.0"
+description = "Typing stubs for setuptools"
+category = "dev"
+optional = false
+python-versions = "*"
+files = [
+    {file = "types-setuptools-67.7.0.0.tar.gz", hash = "sha256:f59b03c786510176c7601578d84d5e6c58e985de331f08036b2fe008408a63c1"},
+    {file = "types_setuptools-67.7.0.0-py3-none-any.whl", hash = "sha256:02ee794d41c282ecfc99e09d8115ca4c3c4395a9747d1a35fa4a6f243d7585e6"},
+]
+
+[[package]]
 name = "types-tqdm"
 version = "4.65.0.1"
 description = "Typing stubs for tqdm"
@@ -952,4 +992,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "039511d7db38b9d041371f20b8ca46c9720daf3f1eae4f17f6ec5015bdb2932e"
+content-hash = "fd550f237d20376c56e54c1bfa7eb5a8f9fe5dbd1669f27549db69f1201b27a1"

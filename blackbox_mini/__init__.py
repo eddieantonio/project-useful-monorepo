@@ -68,6 +68,14 @@ class JavaCompilerError:
     def __str__(self) -> str:
         return f"{self.filename}:{self.start.line}: error: {self.text}"
 
+    @property
+    def fixed_error_message_text(self) -> str:
+        r"""
+        There's a bug in Blackbox Mini where \n are literally encoded in the XML.
+        This will return the error message text with the \n's replaced with newlines.
+        """
+        return self.text.replace("\\n", "\n")
+
     @classmethod
     def from_element(cls, element, filename: str = "<unknown>") -> JavaCompilerError:
         "Parse an compiler error from a <compile-error> XML element."

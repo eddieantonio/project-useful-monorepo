@@ -3,26 +3,55 @@ rate-pems.py -- rate programming error messages
 
 REQUIREMENTS:
     sample.pickle -- a sample of scenarios from Blackbox Mini
+    llm/ -- all of the GPT-4 responses, saved as JSON files
 
 """
 
 # Let's load the error messages from the file.
 
+import json
 import pickle
+from pathlib import Path
+from typing import Literal
 
+import questionary
 from pygments import highlight
-from pygments.lexers import JavaLexer
 from pygments.formatters import TerminalFormatter
+from pygments.lexers import JavaLexer
+from questionary import Choice, ValidationError
+from rich import print
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.text import Text
 
 from blackbox_mini import JavaUnit
 
-RED = "\x1b[31m"
-BOLD = "\x1b[1m"
-RESET = "\x1b[m"
-GREY = "\x1b[38:5:243m"
+# Rich console for pretty-printing:
+console = Console()
+console.width = min(120, console.width)
 
-with open("sample.pickle", "rb") as f:
-    ALL_SCENARIOS = pickle.load(f)
+# Configure the JavaLexer so that it does not eat up empty lines!
+java_lexer = JavaLexer(stripnl=False)
+terminal_formatter = TerminalFormatter()
+
+Configuration = Literal["javac", "gpt-4-error-only", "gpt-4-with-context", "decaf"]
+
+
+class NonNegativeNumberValidator(questionary.Validator):
+    """
+    Require that a non-negative number has been entered.
+    """
+
+    def validate(self, document) -> None:
+        try:
+            number = int(document.text)
+        except ValueError:
+            raise ValidationError(message="Please enter a number")
+
+        if number < 0:
+            raise ValidationError(message="Please enter a non-negative number")
+
+        return super().validate(document)
 
 
 def print_with_javac_pem(unit: JavaUnit) -> None:
@@ -31,7 +60,7 @@ def print_with_javac_pem(unit: JavaUnit) -> None:
     """
 
     source_lines = highlight(
-        unit.source_code, JavaLexer(), TerminalFormatter()
+        unit.source_code, java_lexer, terminal_formatter
     ).splitlines()
 
     # Place a gutter on the side of the source code
@@ -43,31 +72,161 @@ def print_with_javac_pem(unit: JavaUnit) -> None:
     pem = unit.pems[0]
     pem_line_no = pem.start.line
 
-    for line_no, line in enumerate(source_lines, start=1):
+    for line_no, ansi_line in enumerate(source_lines, start=1):
         on_pem_line = line_no == pem_line_no
+        line = Text.from_ansi(ansi_line)
 
         if not on_pem_line:
-            print(f"{line_no:>{biggest_line_no_width}} | {line}")
+            # Ordinary line:
+            print(f"{line_no:>{biggest_line_no_width}} | ", end="")
+            print(line)
             continue
 
         # Priting the error message:
-        print(f"{RED}{pem!s}{RESET}")
-        print(f"{BOLD}{RED}{line_no:>{biggest_line_no_width}}{RESET} | {line}")
+        print(f"[red]{pem.filename}: error: [bold]{pem.fixed_error_message_text}")
+        # Print the line containing the error:
+        print(f"[bold red]{line_no:>{biggest_line_no_width}}[/bold red] | ", end="")
+        print(line)
 
-        # columns are 1-indexed (annoyingly):
+        # Columns are 1-indexed (annoyingly):
         padding = (pem.start.column - 1) * " "
         margin = " " * biggest_line_no_width
 
+        # Print the caret (looks like a red, squiggly underline):
         if pem.start.line == pem.end.line:
             marker = "^" * max(1, pem.end.column - pem.start.column)
         else:
             marker = "^"
-        print(f"{margin} | {padding}{RED}{marker}{RESET}")
+        print(f"{margin} | {padding}[red]{marker}[/red]")
         print(f"{margin} |")
 
 
-# TODO: expand this for all scenarios
-scenario = ALL_SCENARIOS[13]
+with open("sample.pickle", "rb") as f:
+    ALL_SCENARIOS = pickle.load(f)
 
-unit = scenario["unit"]
-print_with_javac_pem(unit)
+# Where we can find the data:
+here = Path(__file__).parent
+CODE_ONLY = here / "llm" / "code-only"
+CODE_AND_CONTEXT_ONLY = here / "llm" / "code-and-context"
+
+# Load the GPT-4 (code-only) error messages:
+# This maps PEM category to the plain text (which can be interpreted as Markdown)
+GPT4_CODE_ONLY_RESPONSES = {}
+
+for json_path in CODE_ONLY.glob("*.json"):
+    with json_path.open() as json_file:
+        data = json.load(json_file)
+    pem_category = data["pem_category"]
+    text = data["response"]["choices"][0]["message"]["content"]
+    GPT4_CODE_ONLY_RESPONSES[pem_category] = text
+
+# Load GPT-4 (code and context) error messages:
+# This maps (srcml_path, version) to the plain text (which can be interpreted as Markdown)
+GPT4_CONTEXTUAL_RESPONSES = {}
+
+
+for json_path in CODE_AND_CONTEXT_ONLY.glob("**/*.json"):
+    with json_path.open() as json_file:
+        data = json.load(json_file)
+    srcml_path = data["srcml_path"]
+    version = data["version"]
+    text = data["response"]["choices"][0]["message"]["content"]
+    GPT4_CONTEXTUAL_RESPONSES[(srcml_path, version)] = text
+
+
+def ask_about_scenario(scenario, configuration: Configuration) -> None:
+    unit = scenario["unit"]
+
+    # Fence off the source code:
+    console.rule("[bold]Source code")
+    print_with_javac_pem(unit)
+
+    print()
+    console.rule(
+        f"[bold]Rate this {configuration} error message for the above context[/bold]:"
+    )
+    if configuration == "javac":
+        javac_error_message = unit.pems[0].fixed_error_message_text
+        length = len(javac_error_message)
+        print(javac_error_message)
+    elif configuration == "gpt-4-error-only":
+        message = GPT4_CODE_ONLY_RESPONSES[scenario["pem_category"]]
+        length = len(message)
+        md = Markdown(message)
+        console.print(md)
+    elif configuration == "gpt-4-with-context":
+        message = GPT4_CONTEXTUAL_RESPONSES.get(
+            # I know, I know, it should be "srcml_path", but I accidentally
+            # changed it to "xml_filename" in the pickle, so here we are:
+            (scenario["xml_filename"], scenario["version"])
+        )
+        if message is None:
+            # TODO: what to do about messages that don't have a response?
+            raise NotImplementedError(
+                "The source code is too big to get a response from GPT-4"
+            )
+        length = len(message)
+        md = Markdown(message)
+        console.print(md)
+    elif configuration == "decaf":
+        raise NotImplementedError("Don't have Decaf PEMs yet")
+    else:
+        raise ValueError(f"Unknown configuration: {configuration!r}")
+    console.rule()
+
+    answers = ask_questions_for_current_configuration()
+    answers.update(length=length)
+    print(answers)
+
+
+def ask_questions_for_current_configuration():
+    return questionary.form(
+        # Denny et al. 2021 CHI paper readability factors
+        jargon=questionary.text(
+            "How many jargon words are in this message?",
+            validate=NonNegativeNumberValidator,
+        ),
+        sentences=questionary.confirm(
+            "Does this message use complete sentences?",
+        ),
+        language=questionary.confirm(
+            "Does this message use simple language?",
+        ),
+        # Leinonen et al. 2023 -- LLMs for PEMs
+        explanation=questionary.confirm(
+            "Does this message provide an explanation for the error?",
+        ),
+        explanation_correctness=questionary.select(
+            "Is the explanation correct?",
+            choices=[
+                Choice(title="Yes", value="yes"),
+                Choice(title="One-sided conflict", value="one-sided-conflict"),
+                Choice(title="No", value="no"),
+            ],
+        ),
+        fix=questionary.select(
+            "Is a clear fix given?",
+            choices=[
+                Choice(title="A fix is condfidently given", value="confident"),
+                Choice(
+                    title="A fix or hint is given, but it is not asserted to be correct",
+                    value="hint",
+                ),
+                Choice(title="A fix is implied", value="implicit-suggestion"),
+                Choice(title="No clear fix given", value="no"),
+            ],
+        ),
+        fix_correctness=questionary.select(
+            "Is the fix correct?",
+            choices=[
+                Choice(title="Yes", value="yes"),
+                Choice(title="One-sided conflict", value="one-sided-conflict"),
+                Choice(title="No", value="no"),
+            ],
+        ),
+    ).ask()
+
+
+# TODO: expand this for all scenarios
+scenario = ALL_SCENARIOS[102]
+ask_about_scenario(scenario, "gpt-4-with-context")
