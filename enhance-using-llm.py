@@ -17,18 +17,30 @@ OUTPUTS:
                 {k}-{src}-{version}.json
 """
 
-import json
 import os
-import pickle
 import sys
-from itertools import groupby
+import pickle
+import json
+import logging
 from pathlib import Path, PurePosixPath
+from itertools import groupby
 
 import openai
 from dotenv import load_dotenv
 from tqdm import tqdm
 
 from blackbox_mini import JavaCompilerError
+
+# Adapated from https://github.com/openai/openai-cookbook/blob/main/examples/How_to_format_inputs_to_ChatGPT_models.ipynb
+# Intereting quote:
+# > Best practices for instructing models may change from model version to model
+# > version. The advice that follows applies to gpt-3.5-turbo-0301 and may not
+# > apply to future models.
+MODEL = "gpt-4"
+
+# The maximum length of a prompt is 8192 tokens. Since we cannot reliably convert characters to tokens without yet another API call,
+# I will arbitrarily set the maximum length to the size of the largest prompt that fit under the limit:
+MAX_SOURCE_CODE_LENGTH = 13919
 
 # API key should be stored in .env or otherwise passed in as an environment variable:
 load_dotenv()
@@ -40,12 +52,8 @@ except KeyError:
     print("Forgot to set OPENAI_API_KEY environment variable")
     sys.exit(1)
 
-# Adapated from https://github.com/openai/openai-cookbook/blob/main/examples/How_to_format_inputs_to_ChatGPT_models.ipynb
-# Intereting quote:
-# > Best practices for instructing models may change from model version to model
-# > version. The advice that follows applies to gpt-3.5-turbo-0301 and may not
-# > apply to future models.
-MODEL = "gpt-4"
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 def make_prompt_with_context(code: str, error: JavaCompilerError) -> str:
@@ -76,7 +84,7 @@ def make_prompt_for_error(error: JavaCompilerError) -> str:
 
 
 with open("sample.pickle", "rb") as f:
-    scenarios = pickle.load(f)
+    ALL_SCENARIOS = pickle.load(f)
 
 # Ensure the directory structure exists:
 HERE = Path(__file__).parent.resolve()
@@ -99,7 +107,7 @@ def collect_error_only_responses() -> None:
     This requires far fewer API calls than collecting responses for the code and context.
     """
     for n, (category, group) in tqdm(
-        enumerate(groupby(scenarios, key=by_pem_category), start=1)
+        enumerate(groupby(ALL_SCENARIOS, key=by_pem_category), start=1)
     ):
         json_filename = f"{n:02d}-{category}.json"
         scenario = next(group)
@@ -147,23 +155,40 @@ def collect_code_and_context_responses() -> None:
         its rank (n) and the scenario's index within its category (k).
 
         I factored this out as a generator, because, although this could all
-        be done in one for loop, you don't want to see what that looks like!
+        be done in a single for loop, you don't want to see what that looks like!
         """
         for n, (category, group) in enumerate(
-            groupby(scenarios, key=by_pem_category), start=1
+            groupby(ALL_SCENARIOS, key=by_pem_category), start=1
         ):
             for k, scenario in enumerate(group, start=1):
                 yield n, k, category, scenario
 
-    for n, k, category, scenario in tqdm(numbererd_scenarios(), total=len(scenarios)):
+    for n, k, category, scenario in tqdm(
+        numbererd_scenarios(), total=len(ALL_SCENARIOS)
+    ):
         code = scenario["unit"].source_code
         pem = scenario["unit"].pems[0]
 
         srcml_path = scenario["xml_filename"]
         version = scenario["version"]
+
         subdirectory_name = f"{n:02d}-{category}"
+        subdirectory = CODE_AND_CONTEXT_DIR / subdirectory_name
+        subdirectory.mkdir(exist_ok=True)
+
         base_srcml_name = PurePosixPath(srcml_path).stem
-        json_filename = f"{k:02d}-{base_srcml_name}-{version}.json"
+        json_path = subdirectory / f"{k:02d}-{base_srcml_name}-{version}.json"
+
+        # Skip if we've already collected this response:
+        if json_path.exists():
+            continue
+
+        # Skip source code contexts that are way too big:
+        if len(code) > MAX_SOURCE_CODE_LENGTH:
+            logger.warning(
+                f"Skipping {json_path.stem} because it exceeds the maximum length of {MAX_SOURCE_CODE_LENGTH} tokens."
+            )
+            continue
 
         request = dict(
             model=MODEL,
@@ -174,12 +199,9 @@ def collect_code_and_context_responses() -> None:
             temperature=0,
         )
 
-        subdirectory = CODE_AND_CONTEXT_DIR / subdirectory_name
-        subdirectory.mkdir(exist_ok=True)
-
         response = openai.ChatCompletion.create(**request)
 
-        with open(subdirectory / json_filename, "w") as json_file:
+        with json_path.open(mode="w") as json_file:
             # Provide enough information to reconstruct the original scenario:
             json.dump(
                 dict(
