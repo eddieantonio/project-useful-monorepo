@@ -48,9 +48,9 @@ class JavaUnit:
         # Need to add empty lines before the first actual line number in the file, or else the
         # line numbering will be off.
         first_line_number = determine_first_line_number(self.unit)
-        preceding_empty_lines = [""] * (first_line_number - 1)
+        preceding_empty_lines = "\n" * (first_line_number - 1)
 
-        source_code = "".join(self.unit.itertext())
+        source_code = preceding_empty_lines + "".join(self.unit.itertext())
         return source_code
 
 
