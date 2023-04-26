@@ -19,6 +19,7 @@ SEE ALSO
 
 import pickle
 from typing import Literal
+from pathlib import Path
 
 import questionary
 from pygments import highlight
@@ -41,6 +42,8 @@ java_lexer = JavaLexer(stripnl=False)
 terminal_formatter = TerminalFormatter()
 
 Configuration = Literal["javac", "gpt-4-error-only", "gpt-4-with-context", "decaf"]
+
+HERE = Path(__file__).parent.resolve()
 
 
 class NonNegativeNumberValidator(questionary.Validator):
@@ -107,10 +110,10 @@ def print_with_javac_pem(unit: JavaUnit) -> None:
         print(f"{margin} |")
 
 
-with open("sample.pickle", "rb") as f:
+with open(HERE / "sample.pickle", "rb") as f:
     ALL_SCENARIOS = pickle.load(f)
 
-with open("llm.pickle", "rb") as f:
+with open(HERE / "llm.pickle", "rb") as f:
     LLM_RESULTS = pickle.load(f)
 
 GPT4_CODE_ONLY_RESPONSES = LLM_RESULTS["error_only"]
@@ -212,7 +215,11 @@ def ask_questions_for_current_configuration():
 
 
 # TODO: expand this for all scenarios
-from random import choice
-
-scenario = choice(ALL_SCENARIOS)
+scenario = [
+    s
+    for s in ALL_SCENARIOS
+    # This PEM is intersting because the ')' expected message makes very little sense:
+    if s["xml_filename"] == "/data/mini/srcml-2018-06/project-12826519/src-61952797.xml"
+    and s["version"] == "2495882730"
+][0]
 ask_about_scenario(scenario, "gpt-4-error-only")
