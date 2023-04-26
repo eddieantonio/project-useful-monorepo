@@ -17,6 +17,7 @@ SEE ALSO
     pickle-llm-results.py -- creates llm.pickle
 """
 
+import sys
 import pickle
 from typing import Literal, Sequence
 from pathlib import Path
@@ -182,72 +183,121 @@ def ask_about_configuration(scenario, configuration: Configuration):
 
     console.rule()
 
-    answers = ask_questions_for_current_configuration()
-    answers.update(length=length)
+    try:
+        answers = ask_questions_for_current_configuration()
+        answers.update(length=length)
+    except KeyboardInterrupt:
+        print()
+        print("Exiting...")
+        sys.exit(1)
     print(answers)
 
 
 def ask_questions_for_current_configuration():
-    return questionary.form(
-        # Denny et al. 2021 CHI paper readability factors
+    answers = {}
+
+    # Denny et al. 2021 CHI paper readability factors
+    answers.update(
         jargon=questionary.text(
             "How many jargon words are in this message?",
             validate=NonNegativeNumberValidator,
-        ),
+        ).unsafe_ask(),
         sentence_structure=questionary.select(
             "Is this error message presented in well-structured sentences?",
             choices=[
-                Choice(title="Clear, understanble sentences", value=2),
-                Choice(title="Could be clearer", value=1),
-                Choice(title="Unclear, does not use full sentences", value=0),
+                Choice(title="Clear, understanble sentences", value="clear"),
+                Choice(title="Could be clearer", value="could-be-clearer"),
+                Choice(title="Unclear, does not use full sentences", value="unclear"),
             ],
-        ),
-        # Leinonen et al. 2023 -- LLMs for PEMs
+        ).unsafe_ask(),
+    )
+    # Note: length should be added by the caller
+
+    # Leinonen et al. 2023 -- LLMs for PEMs
+    answers.update(
         explanation=questionary.confirm(
             "Does this message provide an explanation for the error?",
-        ),
-        explanation_correctness=questionary.select(
-            "Is the explanation correct?",
-            choices=[
-                Choice(title="Yes", value="yes"),
-                Choice(title="One-sided conflict", value="one-sided-conflict"),
-                Choice(title="No", value="no"),
-            ],
-        ),
+        ).unsafe_ask()
+    )
+
+    if answers["explanation"]:
+        answers.update(
+            explanation_correctness=questionary.select(
+                "Is the explanation correct?",
+                choices=[
+                    Choice(title="It is unmistakably correct", value="yes"),
+                    Choice(title="Maybe/Depends on programmer's intent", value="maybe"),
+                    Choice(title="It is definitely wrong", value="no"),
+                ],
+            ).unsafe_ask()
+        )
+    else:
+        answers.update(explanation_correctness=None)
+
+    if answers["explanation_correctness"] == "maybe":
+        answers.update(
+            explanation_maybe=questionary.select(
+                "Why might the explanation be maybe correct?",
+                choices=[
+                    Choice(title="The programmer's intent is unclear", value="unclear"),
+                    Choice(
+                        title="The error is a one-sided conflict",
+                        value="one-sided-conflict",
+                    ),
+                    Choice(title="Other (explain in notes)", value="other"),
+                ],
+            ).unsafe_ask()
+        )
+    else:
+        answers.update(explanation_maybe=None)
+
+    answers.update(
         fix=questionary.select(
             "Does it provide a fix?",
             choices=[
-                Choice(title="A fix is condfidently given", value="confident"),
+                Choice(title="A fix is confidently provided", value="confident"),
                 Choice(
                     title="A fix or hint is given, but it is not asserted to be correct",
                     value="hint",
                 ),
-                Choice(title="A fix is implied", value="implicit-suggestion"),
+                Choice(title="A fix is implied/suggested", value="implicit-suggestion"),
                 Choice(title="No clear fix given", value="no"),
             ],
-        ),
-        fix_correctness=questionary.select(
-            "Is the fix correct?",
-            choices=[
-                Choice(title="Yes", value="yes"),
-                Choice(title="Depends on programmer's intent/other", value="depends"),
-                Choice(title="No", value="no"),
-            ],
-        ),
+        ).unsafe_ask(),
+    )
+
+    if answers["fix"] != "no":
+        answers.update(
+            fix_correctness=questionary.select(
+                "Is the fix correct?",
+                choices=[
+                    Choice(title="Yes", value="yes"),
+                    Choice(
+                        title="Maybe/Depends on programmer's intent/other",
+                        value="maybe",
+                    ),
+                    Choice(title="No", value="no"),
+                ],
+            ).ask(),
+        )
+    else:
+        answers.update(fix_correctness=None)
+
+    answers.update(
         additional_errors=questionary.select(
             "Did it find additional errors?",
             choices=[
                 Choice(title="Yes", value="yes"),
-                Choice(title="Possibly", value="possibly"),
+                Choice(title="Maybe", value="maybe"),
                 Choice(title="No", value="no"),
             ],
-        ),
-        # TODO: if depends, ask about one-sided conflit or other circumstances
-        # Choice(title="One-sided conflict", value="one-sided-conflict"),
+        ).unsafe_ask(),
         notes=questionary.text(
-            "Any notes?",
-        ),
-    ).ask()
+            "(Optional) Any additional notes, thoughts, or other comments?",
+        ).unsafe_ask(),
+    )
+
+    return answers
 
 
 # TODO: expand this for all scenarios
@@ -258,5 +308,4 @@ scenario = [
     if s["xml_filename"] == "/data/mini/srcml-2018-06/project-12826519/src-61952797.xml"
     and s["version"] == "2495882730"
 ][0]
-# ask_about_scenario(scenario, ["javac", "gpt-4-error-only", "gpt-4-with-context"])
-ask_about_scenario(scenario, ["gpt-4-with-context"])
+ask_about_scenario(scenario, ["javac", "gpt-4-error-only", "gpt-4-with-context"])
