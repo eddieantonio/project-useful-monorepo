@@ -194,11 +194,13 @@ def ask_questions_for_current_configuration():
             "How many jargon words are in this message?",
             validate=NonNegativeNumberValidator,
         ),
-        sentences=questionary.confirm(
-            "Does this message use complete sentences?",
-        ),
-        language=questionary.confirm(
-            "Does this message use simple language?",
+        sentence_structure=questionary.select(
+            "Is this error message presented in well-structured sentences?",
+            choices=[
+                Choice(title="Clear, understanble sentences", value=2),
+                Choice(title="Could be clearer", value=1),
+                Choice(title="Unclear, does not use full sentences", value=0),
+            ],
         ),
         # Leinonen et al. 2023 -- LLMs for PEMs
         explanation=questionary.confirm(
@@ -213,7 +215,7 @@ def ask_questions_for_current_configuration():
             ],
         ),
         fix=questionary.select(
-            "Is a clear fix given?",
+            "Does it provide a fix?",
             choices=[
                 Choice(title="A fix is condfidently given", value="confident"),
                 Choice(
@@ -228,9 +230,22 @@ def ask_questions_for_current_configuration():
             "Is the fix correct?",
             choices=[
                 Choice(title="Yes", value="yes"),
-                Choice(title="One-sided conflict", value="one-sided-conflict"),
+                Choice(title="Depends on programmer's intent/other", value="depends"),
                 Choice(title="No", value="no"),
             ],
+        ),
+        additional_errors=questionary.select(
+            "Did it find additional errors?",
+            choices=[
+                Choice(title="Yes", value="yes"),
+                Choice(title="Possibly", value="possibly"),
+                Choice(title="No", value="no"),
+            ],
+        ),
+        # TODO: if depends, ask about one-sided conflit or other circumstances
+        # Choice(title="One-sided conflict", value="one-sided-conflict"),
+        notes=questionary.text(
+            "Any notes?",
         ),
     ).ask()
 
@@ -243,4 +258,5 @@ scenario = [
     if s["xml_filename"] == "/data/mini/srcml-2018-06/project-12826519/src-61952797.xml"
     and s["version"] == "2495882730"
 ][0]
-ask_about_scenario(scenario, ["javac", "gpt-4-error-only", "gpt-4-with-context"])
+# ask_about_scenario(scenario, ["javac", "gpt-4-error-only", "gpt-4-with-context"])
+ask_about_scenario(scenario, ["gpt-4-with-context"])

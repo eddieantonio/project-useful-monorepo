@@ -10,6 +10,7 @@
 
 # I was fighting with GitHub Copilot, and it kept suggesting this line -- I usually use:
 # $(realpath $(dirname $0)) -- however, the pwd -P trick does the same thing, and is more portable.
+# Note: in the actual script, I recommend just hardcoding the path ¯\_(ツ)_/¯
 SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 # TODO: replace this with YOUR path to the virtual environment.  You can find it by running:
 VENV="$(poetry env info --path)"
