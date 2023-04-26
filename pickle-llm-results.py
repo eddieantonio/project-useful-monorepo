@@ -15,7 +15,7 @@ DESCRIPTION:
 
 OUTPUT:
     llm.pickle -- a pickle of a dictionary containing the following keys:
-        code_only -- a dictionary mapping PEM category to an enhanced PEM
+        error_only -- a dictionary mapping PEM category to an enhanced PEM
         code_and_context -- a dictionary mapping (srcml_path, version) to an enhanced PEM
         _raw -- the raw JSON data
 
@@ -29,29 +29,29 @@ from pathlib import Path
 
 # Where we can find the data:
 HERE = Path(__file__).parent
-CODE_ONLY = HERE / "llm" / "code-only"
+ERROR_ONLY = HERE / "llm" / "code-only"
 CODE_AND_CONTEXT_ONLY = HERE / "llm" / "code-and-context"
 
 # We will store the full JSON in a dictionary, but for the purposes of rating
 # PEMs, this data is superfluous.
 raw = {
-    "code_only": {},
+    "error_only": {},
     "code_and_context": {},
 }
 
 # Load the GPT-4 (code-only) error messages:
 # This maps PEM category to plain text (which can be interpreted as Markdown)
-code_only_messages = {}
+error_only_messages = {}
 
-for json_path in CODE_ONLY.glob("*.json"):
+for json_path in ERROR_ONLY.glob("*.json"):
     with json_path.open() as json_file:
         data = json.load(json_file)
 
     pem_category = data["pem_category"]
     text = data["response"]["choices"][0]["message"]["content"]
 
-    raw["code_only"][pem_category] = data
-    code_only_messages[pem_category] = text
+    raw["error_only"][pem_category] = data
+    error_only_messages[pem_category] = text
 
 # Load GPT-4 (code and context) error messages:
 # This maps (srcml_path, version) to plain text (which can be interpreted as Markdown)
@@ -71,7 +71,7 @@ for json_path in CODE_AND_CONTEXT_ONLY.glob("**/*.json"):
 with open("llm.pickle", "wb") as f:
     pickle.dump(
         {
-            "code_only": code_only_messages,
+            "error_only": error_only_messages,
             "code_and_context": code_and_data_messages,
             "_raw": raw,
         },

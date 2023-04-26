@@ -113,7 +113,7 @@ with open("sample.pickle", "rb") as f:
 with open("llm.pickle", "rb") as f:
     LLM_RESULTS = pickle.load(f)
 
-GPT4_CODE_ONLY_RESPONSES = LLM_RESULTS["code_only"]
+GPT4_CODE_ONLY_RESPONSES = LLM_RESULTS["error_only"]
 GPT4_CONTEXTUAL_RESPONSES = LLM_RESULTS["code_and_context"]
 
 
