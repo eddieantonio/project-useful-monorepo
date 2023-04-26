@@ -18,7 +18,7 @@ SEE ALSO
 """
 
 import pickle
-from typing import Literal
+from typing import Literal, Sequence
 from pathlib import Path
 
 import questionary
@@ -120,14 +120,35 @@ GPT4_CODE_ONLY_RESPONSES = LLM_RESULTS["error_only"]
 GPT4_CONTEXTUAL_RESPONSES = LLM_RESULTS["code_and_context"]
 
 
-def ask_about_scenario(scenario, configuration: Configuration):
+def print_source_code(scenario):
     unit = scenario["unit"]
 
     # Fence off the source code:
     console.rule("[bold]Source code")
     print_with_javac_pem(unit)
 
-    print()
+
+def ask_about_scenario(scenario, configurations: Sequence[Configuration]):
+    """
+    Asks the user to rate a scenario under various different configurations.
+
+    A scenario is some erroneous Java code, and a programming error message.
+    A configuration is one of the following:
+     - javac (control)
+     - gpt-4-error-only -- enhance only the error message text
+     - gpt-4-with-context -- enhance the error message text with code context
+     - decaf -- (not yet implemented!)
+    """
+    print_source_code(scenario)
+
+    for configuration in configurations:
+        print()
+        ask_about_configuration(scenario, configuration)
+
+
+def ask_about_configuration(scenario, configuration: Configuration):
+    unit = scenario["unit"]
+
     console.rule(
         f"[bold]Rate this {configuration} error message for the above context[/bold]:"
     )
@@ -222,4 +243,4 @@ scenario = [
     if s["xml_filename"] == "/data/mini/srcml-2018-06/project-12826519/src-61952797.xml"
     and s["version"] == "2495882730"
 ][0]
-ask_about_scenario(scenario, "gpt-4-error-only")
+ask_about_scenario(scenario, ["javac", "gpt-4-error-only", "gpt-4-with-context"])
