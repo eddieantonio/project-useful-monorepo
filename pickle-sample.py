@@ -8,16 +8,15 @@ SYNOPSIS
 
 REQUIREMENTS:
     sample.tsv
+    **MUST BE RUN ON white.bluej.org!**
 
 DESCRIPTION:
-
     This will read sample.tsv for a series of scenarios, and create a Python pickle file
-    that contains the full source code of that scenario.
+    that contains the full source code of that scenario and its javac error messages.
 
 SEE ALSO:
     sample-pem-index.py -- creates sample.tsv
 """
-
 
 import pickle
 

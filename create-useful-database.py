@@ -1,8 +1,19 @@
-"""
-Create a useful subset from errors.sqlite3 (collected during Project Antipatterns).
+#!/usr/bin/env python3
 
-This subset contains only the top 20 "first" programming error messages in Blackbox
-Mini.
+"""
+create-useful-database.py -- create a useful subset from errors.sqlite3
+
+REQUIREMENTS:
+    errors.sqlite3 -- this was created during Project Antipatterns
+
+DESCRIPTION
+    Create a useful subset from errors.sqlite3 (collected during Project Antipatterns).
+    This subset contains only the top 20 "first" programming error messages in
+    Blackbox Mini. These "scenarios" are elligible for rating, since they are
+    always true positive symptoms of a problem in the novice's code.
+
+OUTPUTS:
+    useful.sqlite3
 """
 
 import sqlite3

@@ -15,11 +15,14 @@ Note: **PEM** = **Programming Error Message**
 
 # Install
 
-**NOTE**: You only need to install requirements for development. As of
-now (2023-04-20), there is no need to install any additional Python
-requirements to collect data.
+**NOTE**: This step can be skipped if running the data collection code on the Blackbox server.
 
     $ poetry install
+
+The only scripts that **require** external Python dependencies (and hence, require the above step) are:
+
+ - `enhance-using-llms.py`
+ - `rate-pems.py`
 
 # Utilities
 
@@ -42,8 +45,23 @@ collected during [project-antipatterns].
    from programming error message category to the files/versions that
    induce that PEM.
  * `sample-pem-index.py` -- reads `pem-index.pickle` and prints a small
-   sample of files/versions that induce a PEM category
- - `pickle-sample.py` 
+   sample of files/versions that induce a PEM category.
+   This sample can be interpreted as a TSV file.
+ - `pickle-sample.py` -- reads `sample.tsv` and collects source code and PEMs
+   for all of the scenarios and stores them in `sample.pickle`.
+    **This file must be run on the Blackbox server!**
+ - `enhance-using-llm.py` -- reads `sample.pickle` and enhances the error
+    messages using the OpenAI API. **This script costs you money!**
+    The output is a messy directory structure called `llm/`.
+ - `pickle-llm-results.py` -- takes the `llm/` directory structure,
+   and creates `llm.pickle`, which is a much more easy-to-use version
+   of the same information.
+
+# Interactive scripts
+
+ - `rate-pems.py` is an interactive TUI application, intended to collect
+   judgements about PEM quality.
+  
 
 # Other info
 
@@ -58,6 +76,9 @@ the `project_antipatterns` package.
    produced by `javac`.
  - **unit**: a Java source code file at a particular version
  - **sample**: a random sample of eligible scenarios
+ - **PEM category**: a collection of clustered programming error messages.
+   These somewhat correspond to the javac's internal error IDs, however there
+   some of these IDs have been broken down into multiple categories.
 
 # Copyright
 

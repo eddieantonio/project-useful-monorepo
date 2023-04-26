@@ -6,15 +6,28 @@ enhance-using-llm.py -- enhance error messages using an LLM.
 REQUIREMENTS:
     sample.pickle
 
-OUTPUTS:
-    llm/ directory with JSON files
+DESCRIPTION:
+    This will use the OpenAI API to enhance error messages from the sample using
+    an LLM. Currently, this uses GPT-4.
+    NOTE: OpenAI API calls cost $$$, so don't go overboard running this script!
+    To avoid hurting our bank account, this script actively avoids enhancing the
+    same PEM twice. This is accomplished by storing the enhanced PEMs in a
+    nested directory structure, and checking if the API call has already been
+    issued before making it.
 
-    llm/
-        code-only/
+ENVIRONMENT VARIABLES:
+    OPENAI_API_KEY -- a valid API key for OpenAI. Hint! Store this in the .env file!
+
+OUTPUTS:
+    llm/ -- directory with JSON files
+        code-only/ -- NOTE! this should be called "error-only", but mistakes were made
             {n}-{message_id}.json
         code-and-context/
             {n}-{message_id}/
                 {k}-{src}-{version}.json
+
+SEE ALSO:
+    pickle-llm-results.py -- pickle the directory structure in one easy-to-share file!
 """
 
 import os

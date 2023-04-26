@@ -6,9 +6,6 @@ create-pem-index.py -- builds an index from PEM category to an instance of that 
 REQUIREMENTS:
     useful.sqlite3
 
-OUTPUTS:
-    pem-index.pickle
-
 DESCRIPTION:
 
     This will create an index that maps a PEM category (for example, ';' expected) to
@@ -26,9 +23,12 @@ DESCRIPTION:
             ...
         }
 
+OUTPUTS:
+    pem-index.pickle
+
 SEE ALSO:
-    create-useful-database.py
-    sample-pem-index.py
+    create-useful-database.py -- creates useful.sqlite3
+    sample-pem-index.py -- takes a random sample from pem-index.pickle
 """
 
 import pickle

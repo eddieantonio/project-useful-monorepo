@@ -5,6 +5,7 @@ sample-pem-index.py -- prints a sample of K messages from the PEM index
 
 SYNOPSIS
     sample-pem-index.py [k]
+    sample-pem-index.py [k] > sample.tsv
 
 REQUIREMENTS:
     pem-index.pickle
@@ -15,6 +16,12 @@ DESCRIPTION:
     output can be either
         a) saved as a .tsv; or
         b) copied pasted to be used with bbm-view on white.bluej.org.
+        
+    The expected usage is to redirect the output to a file, and then use that
+    file with `pickle-sample.py` on white.bluej.org:
+
+        $ ./sample-pem-index.py > sample.tsv
+        $ ./pickle-sample.py
 
     Examples:
 
