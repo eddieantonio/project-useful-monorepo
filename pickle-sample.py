@@ -15,7 +15,7 @@ DESCRIPTION:
     that contains the full source code of that scenario.
 
 SEE ALSO:
-    sample-pem.index.py -- creates sample.tsv
+    sample-pem-index.py -- creates sample.tsv
 """
 
 

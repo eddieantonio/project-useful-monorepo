@@ -1,17 +1,23 @@
+#!/usr/bin/env python3
+
 """
 rate-pems.py -- rate programming error messages
 
 REQUIREMENTS:
     sample.pickle -- a sample of scenarios from Blackbox Mini
-    llm/ -- all of the GPT-4 responses, saved as JSON files
+    llm.pickle -- enhanced error messages from GPT-4
 
+DESCRIPTION:
+    This will ask the user to rate programming error messages from javac,
+    decaf, and two versions from GPT-4.
+    This is an interactive, TUI application.
+
+SEE ALSO
+    pickle-sample.py -- creates sample.pickle
+    pickle-llm-results.py -- creates llm.pickle
 """
 
-# Let's load the error messages from the file.
-
-import json
 import pickle
-from pathlib import Path
 from typing import Literal
 
 import questionary
@@ -104,37 +110,14 @@ def print_with_javac_pem(unit: JavaUnit) -> None:
 with open("sample.pickle", "rb") as f:
     ALL_SCENARIOS = pickle.load(f)
 
-# Where we can find the data:
-here = Path(__file__).parent
-CODE_ONLY = here / "llm" / "code-only"
-CODE_AND_CONTEXT_ONLY = here / "llm" / "code-and-context"
+with open("llm.pickle", "rb") as f:
+    LLM_RESULTS = pickle.load(f)
 
-# Load the GPT-4 (code-only) error messages:
-# This maps PEM category to the plain text (which can be interpreted as Markdown)
-GPT4_CODE_ONLY_RESPONSES = {}
-
-for json_path in CODE_ONLY.glob("*.json"):
-    with json_path.open() as json_file:
-        data = json.load(json_file)
-    pem_category = data["pem_category"]
-    text = data["response"]["choices"][0]["message"]["content"]
-    GPT4_CODE_ONLY_RESPONSES[pem_category] = text
-
-# Load GPT-4 (code and context) error messages:
-# This maps (srcml_path, version) to the plain text (which can be interpreted as Markdown)
-GPT4_CONTEXTUAL_RESPONSES = {}
+GPT4_CODE_ONLY_RESPONSES = LLM_RESULTS["code_only"]
+GPT4_CONTEXTUAL_RESPONSES = LLM_RESULTS["code_and_context"]
 
 
-for json_path in CODE_AND_CONTEXT_ONLY.glob("**/*.json"):
-    with json_path.open() as json_file:
-        data = json.load(json_file)
-    srcml_path = data["srcml_path"]
-    version = data["version"]
-    text = data["response"]["choices"][0]["message"]["content"]
-    GPT4_CONTEXTUAL_RESPONSES[(srcml_path, version)] = text
-
-
-def ask_about_scenario(scenario, configuration: Configuration) -> None:
+def ask_about_scenario(scenario, configuration: Configuration):
     unit = scenario["unit"]
 
     # Fence off the source code:
@@ -172,6 +155,7 @@ def ask_about_scenario(scenario, configuration: Configuration) -> None:
         raise NotImplementedError("Don't have Decaf PEMs yet")
     else:
         raise ValueError(f"Unknown configuration: {configuration!r}")
+
     console.rule()
 
     answers = ask_questions_for_current_configuration()
@@ -228,5 +212,7 @@ def ask_questions_for_current_configuration():
 
 
 # TODO: expand this for all scenarios
-scenario = ALL_SCENARIOS[102]
-ask_about_scenario(scenario, "gpt-4-with-context")
+from random import choice
+
+scenario = choice(ALL_SCENARIOS)
+ask_about_scenario(scenario, "gpt-4-error-only")
