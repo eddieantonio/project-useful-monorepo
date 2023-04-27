@@ -17,9 +17,9 @@ SEE ALSO
     pickle-llm-results.py -- creates llm.pickle
 """
 
-import sys
 import pickle
-from typing import Literal, Sequence
+import textwrap
+from typing import Any, Dict, Literal, Sequence
 from pathlib import Path
 
 import questionary
@@ -42,9 +42,33 @@ console.width = min(120, console.width)
 java_lexer = JavaLexer(stripnl=False)
 terminal_formatter = TerminalFormatter()
 
-Configuration = Literal["javac", "gpt-4-error-only", "gpt-4-with-context", "decaf"]
 
 HERE = Path(__file__).parent.resolve()
+
+### Types ###
+
+# The four different error message variants:
+Variant = Literal["javac", "decaf", "gpt-4-error-only", "gpt-4-with-context"]
+Answers = Dict[str, int]
+
+### Exceptions ###
+
+
+class RaterQuitException(Exception):
+    """
+    Raised when the user quits the application.
+    They could exit using Ctrl+C or Ctrl+D.
+    """
+
+
+class EnhancedMessageDoesNotExistException(Exception):
+    """
+    Raised when an enhanced error message does not exist for a particular
+    variant.
+    """
+
+
+### Validators ###
 
 
 class NonNegativeNumberValidator(questionary.Validator):
@@ -62,6 +86,9 @@ class NonNegativeNumberValidator(questionary.Validator):
             raise ValidationError(message="Please enter a non-negative number")
 
         return super().validate(document)
+
+
+### Functions ###
 
 
 def print_with_javac_pem(unit: JavaUnit) -> None:
@@ -111,16 +138,6 @@ def print_with_javac_pem(unit: JavaUnit) -> None:
         print(f"{margin} |")
 
 
-with open(HERE / "sample.pickle", "rb") as f:
-    ALL_SCENARIOS = pickle.load(f)
-
-with open(HERE / "llm.pickle", "rb") as f:
-    LLM_RESULTS = pickle.load(f)
-
-GPT4_CODE_ONLY_RESPONSES = LLM_RESULTS["error_only"]
-GPT4_CONTEXTUAL_RESPONSES = LLM_RESULTS["code_and_context"]
-
-
 def print_source_code(scenario):
     unit = scenario["unit"]
 
@@ -129,12 +146,12 @@ def print_source_code(scenario):
     print_with_javac_pem(unit)
 
 
-def ask_about_scenario(scenario, configurations: Sequence[Configuration]):
+def ask_about_scenario(scenario, variants: Sequence[Variant]):
     """
-    Asks the user to rate a scenario under various different configurations.
+    Asks the user to rate a scenario under various different variants.
 
     A scenario is some erroneous Java code, and a programming error message.
-    A configuration is one of the following:
+    A variant is one of the following:
      - javac (control)
      - gpt-4-error-only -- enhance only the error message text
      - gpt-4-with-context -- enhance the error message text with code context
@@ -142,66 +159,111 @@ def ask_about_scenario(scenario, configurations: Sequence[Configuration]):
     """
     print_source_code(scenario)
 
-    for configuration in configurations:
+    for variant in variants:
         print()
-        ask_about_configuration(scenario, configuration)
+        # TODO: persist answers
+        # TODO: handle rater quit exception
+        ask_about_variant(scenario, variant)
 
 
-def ask_about_configuration(scenario, configuration: Configuration):
+def ask_about_variant(scenario, variant: Variant) -> Answers:
+    """
+    Continue asking the user to rate a scenario under a particular variant until they are happy with their answers.
+    """
+    while True:
+        answers = ask_about_variant_once(scenario, variant)
+
+        print(answers)
+        # I'm channelling Kaepora Gaebora energy here:
+        answers_confirmed = questionary.confirm(
+            "🦉 Are you sure you want to commit to these answers?",
+            default=False,
+            auto_enter=False,
+        ).ask()
+
+        if answers_confirmed is None:
+            raise RaterQuitException
+
+        if answers_confirmed:
+            return answers
+        else:
+            print("Okay, we'll try that again!")
+
+
+def ask_about_variant_once(scenario, variant: Variant) -> Answers:
+    """
+    Ask the user to rate a scenario under a particular variant.
+    """
     unit = scenario["unit"]
 
     console.rule(
-        f"[bold]Rate this {configuration} error message for the above context[/bold]:"
+        f"[bold]Rate this {variant} error message for the above context[/bold]:"
     )
-    if configuration == "javac":
-        javac_error_message = unit.pems[0].fixed_error_message_text
-        length = len(javac_error_message)
+
+    # All the PEMs use the original javac error message:
+    javac_error_message = unit.pems[0].fixed_error_message_text
+
+    # Show the original javac message for reference:
+    if variant in ("decaf", "gpt-4-error-only", "gpt-4-with-context"):
+        print("[grey62 italic]Note: This is the original javac error message:")
+        message_as_md_quote = textwrap.indent(javac_error_message, "> ")
+        md = Markdown(message_as_md_quote)
+        console.print(md)
+        print()
+
+    if variant == "javac":
+        message = javac_error_message
         print(javac_error_message)
-    elif configuration == "gpt-4-error-only":
+    elif variant == "gpt-4-error-only":
         message = GPT4_CODE_ONLY_RESPONSES[scenario["pem_category"]]
-        length = len(message)
         md = Markdown(message)
         console.print(md)
-    elif configuration == "gpt-4-with-context":
+    elif variant == "gpt-4-with-context":
         message = GPT4_CONTEXTUAL_RESPONSES.get(
             # I know, I know, it should be "srcml_path", but I accidentally
             # changed it to "xml_filename" in the pickle, so here we are:
             (scenario["xml_filename"], scenario["version"])
         )
         if message is None:
-            # TODO: what to do about messages that don't have a response?
-            raise NotImplementedError(
-                "The source code is too big to get a response from GPT-4"
+            raise RaterQuitException(
+                "The source code context was too large to query GPT-4."
             )
-        length = len(message)
         md = Markdown(message)
         console.print(md)
-    elif configuration == "decaf":
+    elif variant == "decaf":
         raise NotImplementedError("Don't have Decaf PEMs yet")
     else:
-        raise ValueError(f"Unknown configuration: {configuration!r}")
+        raise ValueError(f"Unknown configuration: {variant!r}")
 
+    # Ask all the questions!
     console.rule()
-
     try:
-        answers = ask_questions_for_current_configuration()
-        answers.update(length=length)
-    except KeyboardInterrupt:
-        print()
-        print("Exiting...")
-        sys.exit(1)
-    print(answers)
+        answers = ask_questions_for_current_variant()
+    except (KeyboardInterrupt, EOFError):
+        raise RaterQuitException
+
+    answers.update(length=len(message))
+    return answers
 
 
-def ask_questions_for_current_configuration():
-    answers = {}
+def ask_questions_for_current_variant() -> Answers:
+    """
+    Actually asks all the questions!
+
+    Note: you must remember to add the message length to the answers after the fact!
+
+    :throws KeyboardInterrupt: if the user inputs Ctrl-C
+    """
+    answers: Dict[str, Any] = {}
 
     # Denny et al. 2021 CHI paper readability factors
     answers.update(
-        jargon=questionary.text(
-            "How many jargon words are in this message?",
-            validate=NonNegativeNumberValidator,
-        ).unsafe_ask(),
+        jargon=int(
+            questionary.text(
+                "How many jargon words are in this message?",
+                validate=NonNegativeNumberValidator,
+            ).unsafe_ask()
+        ),
         sentence_structure=questionary.select(
             "Is this error message presented in well-structured sentences?",
             choices=[
@@ -255,12 +317,17 @@ def ask_questions_for_current_configuration():
         fix=questionary.select(
             "Does it provide a fix?",
             choices=[
-                Choice(title="A fix is confidently provided", value="confident"),
+                Choice(
+                    title="A specific fix is confidently provided", value="confident"
+                ),
                 Choice(
                     title="A fix or hint is given, but it is not asserted to be correct",
                     value="hint",
                 ),
-                Choice(title="A fix is implied/suggested", value="implicit-suggestion"),
+                Choice(title="A generic fix is provided", value="generic"),
+                Choice(
+                    title="A fix is implied or suggested", value="implicit-suggestion"
+                ),
                 Choice(title="No clear fix given", value="no"),
             ],
         ).unsafe_ask(),
@@ -300,6 +367,17 @@ def ask_questions_for_current_configuration():
     return answers
 
 
+### The script starts here ###
+
+with open(HERE / "sample.pickle", "rb") as f:
+    ALL_SCENARIOS = pickle.load(f)
+
+with open(HERE / "llm.pickle", "rb") as f:
+    LLM_RESULTS = pickle.load(f)
+
+GPT4_CODE_ONLY_RESPONSES = LLM_RESULTS["error_only"]
+GPT4_CONTEXTUAL_RESPONSES = LLM_RESULTS["code_and_context"]
+
 # TODO: expand this for all scenarios
 scenario = [
     s
@@ -308,4 +386,10 @@ scenario = [
     if s["xml_filename"] == "/data/mini/srcml-2018-06/project-12826519/src-61952797.xml"
     and s["version"] == "2495882730"
 ][0]
-ask_about_scenario(scenario, ["javac", "gpt-4-error-only", "gpt-4-with-context"])
+import random
+
+# TODO: MESSY TESTING STUFF HERE:
+i, scenario = random.choice(list(enumerate(ALL_SCENARIOS)))
+print(f"ALL_SCENARIOS[{i}]")
+# ask_about_scenario(scenario, ["javac", "gpt-4-error-only", "gpt-4-with-context"])
+ask_about_scenario(scenario, ["gpt-4-error-only"])
