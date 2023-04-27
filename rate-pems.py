@@ -6,6 +6,7 @@ rate-pems.py -- rate programming error messages
 REQUIREMENTS:
     sample.pickle -- a sample of scenarios from Blackbox Mini
     llm.pickle -- enhanced error messages from GPT-4
+    assignnments.tsv -- a list of "assigned" scenarios for each rater
 
 DESCRIPTION:
     This will ask the user to rate programming error messages from javac,
@@ -14,20 +15,19 @@ DESCRIPTION:
 
 OUTPUT:
     answers.sqlite3 -- the recorded answers for each scenario and variant
-    assignnments.tsv -- a list of "assigned" scenarios for each rater
 
 SEE ALSO
     pickle-sample.py -- creates sample.pickle
     pickle-llm-results.py -- creates llm.pickle
 """
 
-from itertools import groupby
 import os
 import pickle
 import sys
 import textwrap
-from typing import Any, Dict, Literal, Sequence, TypedDict
+from itertools import groupby
 from pathlib import Path
+from typing import Any, Dict, Literal, Sequence, TypedDict
 
 import questionary
 from pygments import highlight
@@ -271,7 +271,7 @@ def ask_about_variant_once(scenario, variant: Variant) -> Answers:
             (scenario["xml_filename"], scenario["version"])
         )
         if message is None:
-            raise RaterQuitException(
+            raise EnhancedMessageDoesNotExistException(
                 "The source code context was too large to query GPT-4."
             )
         md = Markdown(message)
@@ -313,7 +313,7 @@ def ask_questions_for_current_variant() -> Answers:
         sentence_structure=questionary.select(
             "Is this error message presented in well-structured sentences?",
             choices=[
-                Choice(title="Clear, understanble sentences", value="clear"),
+                Choice(title="Clear, understandable sentences", value="clear"),
                 Choice(title="Could be clearer", value="could-be-clearer"),
                 Choice(title="Unclear, does not use full sentences", value="unclear"),
             ],
@@ -331,9 +331,11 @@ def ask_questions_for_current_variant() -> Answers:
     if answers["explanation"]:
         answers.update(
             explanation_correctness=questionary.select(
-                "Is the explanation correct?",
+                "Is the explanation correct for this code context?",
                 choices=[
-                    Choice(title="It is unmistakably correct", value="yes"),
+                    Choice(
+                        title="It is unmistakably correct for this code", value="yes"
+                    ),
                     Choice(title="Maybe/Depends on programmer's intent", value="maybe"),
                     Choice(title="It is definitely wrong", value="no"),
                 ],
@@ -382,7 +384,7 @@ def ask_questions_for_current_variant() -> Answers:
     if answers["fix"] != "no":
         answers.update(
             fix_correctness=questionary.select(
-                "Is the fix correct?",
+                "Is the fix correct for this code context?",
                 choices=[
                     Choice(title="Yes", value="yes"),
                     Choice(
@@ -411,12 +413,6 @@ def ask_questions_for_current_variant() -> Answers:
     )
 
     return answers
-
-
-def by_unit(assignment):
-    "Key function for grouping assignments by unit/scenario."
-    srcml_path, version, _variant = assignment
-    return srcml_path, version
 
 
 ### The script starts here ###
@@ -471,7 +467,7 @@ with open("assignments.tsv") as assignments_file:
         for variant in ALL_VARIANTS:
             assignments.add((srcml_path, version, variant))
 
-# Figure out which assignments need answers.
+# Figure out which of the rater's assignments still need answers.
 answered = set(
     db.execute(
         "SELECT srcml_path, version, variant FROM answers WHERE rater = ?", (rater,)
@@ -479,19 +475,32 @@ answered = set(
 )
 needs_answers = assignments - answered
 
+
+def assignments_grouped_by_unit(assignments):
+    """
+    Yields assigned scenarios, such that all variants of the same scenario are
+    presented one after the other.
+    """
+
+    def by_unit(assignment):
+        srcml_path, version, _variant = assignment
+        return srcml_path, version
+
+    for (srcml_path, version), group in groupby(sorted(assignments), by_unit):
+        variants = [x[2] for x in group]
+        yield srcml_path, version, sorted(variants, key=lambda x: ALL_VARIANTS.index(x))
+
+
 # Do the actual rating!
-for (srcml_path, version), group in groupby(needs_answers, by_unit):
-    variants_needed = [x[2] for x in group]
+for srcml_path, version, variants in assignments_grouped_by_unit(needs_answers):
     scenario = ALL_SCENARIOS[(srcml_path, version)]
     try:
-        ask_about_scenario(scenario, variants_needed)  # type: ignore
+        ask_about_scenario(scenario, variants)  # type: ignore
     except RaterQuitException:
         print("See you next time!")
         sys.exit(0)
 
 print("You've done it! You have rated all the messages! 🎉")
-
-# fetch all the of answers, create a set, then remove items from the assignments
 
 ## TODO: MESSY TESTING STUFF HERE:
 # TODO: expand this for all scenarios
