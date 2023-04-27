@@ -12,14 +12,18 @@ DESCRIPTION:
     decaf, and two versions from GPT-4.
     This is an interactive, TUI application.
 
+OUTPUT:
+    answers.sqlite3 -- the recorded answers for each scenario and variant
+
 SEE ALSO
     pickle-sample.py -- creates sample.pickle
     pickle-llm-results.py -- creates llm.pickle
 """
 
+import os
 import pickle
 import textwrap
-from typing import Any, Dict, Literal, Sequence
+from typing import Any, Dict, Literal, Sequence, TypedDict
 from pathlib import Path
 
 import questionary
@@ -31,6 +35,7 @@ from rich import print
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.text import Text
+from sqlite_utils import Database
 
 from blackbox_mini import JavaUnit
 
@@ -50,6 +55,24 @@ HERE = Path(__file__).parent.resolve()
 # The four different error message variants:
 Variant = Literal["javac", "decaf", "gpt-4-error-only", "gpt-4-with-context"]
 Answers = Dict[str, int]
+
+
+class Scenario(TypedDict):
+    """
+    A scenario is some erroneous Java code paired wth its programming error message.
+    The Java code comes from a particular srcML file in the Blackbox Mini dataset,
+    and can be uniquely identified using its XML path and version ID.
+
+    This typed dict comes from the sample.pickle file.
+    """
+
+    pem_category: str
+    # Also known as "scrml_path" in the useful.sqlite3 🤪
+    xml_filename: str
+    # I know this looks like an int, but it is, in fact, a string:
+    version: str
+    unit: JavaUnit
+
 
 ### Exceptions ###
 
@@ -138,7 +161,7 @@ def print_with_javac_pem(unit: JavaUnit) -> None:
         print(f"{margin} |")
 
 
-def print_source_code(scenario):
+def print_source_code(scenario: Scenario):
     unit = scenario["unit"]
 
     # Fence off the source code:
@@ -146,7 +169,7 @@ def print_source_code(scenario):
     print_with_javac_pem(unit)
 
 
-def ask_about_scenario(scenario, variants: Sequence[Variant]):
+def ask_about_scenario(scenario: Scenario, variants: Sequence[Variant]):
     """
     Asks the user to rate a scenario under various different variants.
 
@@ -157,13 +180,32 @@ def ask_about_scenario(scenario, variants: Sequence[Variant]):
      - gpt-4-with-context -- enhance the error message text with code context
      - decaf -- (not yet implemented!)
     """
+    # This statement is not necessary, but is here to document that I'm abusing
+    # global variables :)
+    global answers_table, rater
+
     print_source_code(scenario)
 
     for variant in variants:
         print()
-        # TODO: persist answers
         # TODO: handle rater quit exception
-        ask_about_variant(scenario, variant)
+        try:
+            answers = ask_about_variant(scenario, variant)
+        except EnhancedMessageDoesNotExistException:
+            print(
+                f"This error message does not exist for {variant}, so we're marking it as complete."
+            )
+            answers = {}
+
+        answers_table.insert(
+            {
+                "srcml_path": scenario["xml_filename"],
+                "version": scenario["version"],
+                "variant": variant,
+                "rater": rater,
+                "answers": answers,
+            }
+        )
 
 
 def ask_about_variant(scenario, variant: Variant) -> Answers:
@@ -378,18 +420,50 @@ with open(HERE / "llm.pickle", "rb") as f:
 GPT4_CODE_ONLY_RESPONSES = LLM_RESULTS["error_only"]
 GPT4_CONTEXTUAL_RESPONSES = LLM_RESULTS["code_and_context"]
 
-# TODO: expand this for all scenarios
-scenario = [
-    s
-    for s in ALL_SCENARIOS
-    # This PEM is intersting because the ')' expected message makes very little sense:
-    if s["xml_filename"] == "/data/mini/srcml-2018-06/project-12826519/src-61952797.xml"
-    and s["version"] == "2495882730"
-][0]
-import random
+# Set up the database.
+db = Database("answers.sqlite3")
+answers_table = db["answers"].create(  # type: ignore
+    {
+        "srcml_path": str,
+        # version looks like an int, but should be treated as a string:
+        "version": str,
+        # See Variant above
+        "variant": str,
+        # One of the raters, determined from the username
+        "rater": str,
+        # This will actually be stored as JSON. I know, that's terrible, but the
+        # schema is too likely to change, so I'm going to make this future
+        # Eddie's problem.
+        "answers": str,
+    },
+    pk=("srcml_path", "version", "variant", "rater"),
+    if_not_exists=True,
+)
+# TODO: figure out the assignments
+# TODO: fetch all the of answers, create a set, then remove items from the assignments
 
-# TODO: MESSY TESTING STUFF HERE:
-i, scenario = random.choice(list(enumerate(ALL_SCENARIOS)))
-print(f"ALL_SCENARIOS[{i}]")
-# ask_about_scenario(scenario, ["javac", "gpt-4-error-only", "gpt-4-with-context"])
-ask_about_scenario(scenario, ["gpt-4-error-only"])
+# Get rater's name from their username:
+ALLOWED_USERS = ("eddie", "brett", "prajish")
+username = os.environ.get("USER")
+if username not in ALLOWED_USERS:
+    rater = questionary.select("Who are you?", choices=ALLOWED_USERS).unsafe_ask()
+else:
+    rater = username
+
+
+## TODO: MESSY TESTING STUFF HERE:
+# TODO: expand this for all scenarios
+# scenario = [
+#    s
+#    for s in ALL_SCENARIOS
+#    # This PEM is intersting because the ')' expected message makes very little sense:
+#    if s["xml_filename"] == "/data/mini/srcml-2018-06/project-12826519/src-61952797.xml"
+#    and s["version"] == "2495882730"
+# ][0]
+# import random
+# i, scenario = random.choice(list(enumerate(ALL_SCENARIOS)))
+# print(f"ALL_SCENARIOS[{i}]")
+## ask_about_scenario(scenario, ["javac", "gpt-4-error-only", "gpt-4-with-context"])
+# ask_about_scenario(scenario, ["gpt-4-error-only"])
+ask_about_scenario(ALL_SCENARIOS[0], ["javac"])
+# print(ALL_SCENARIOS[0])

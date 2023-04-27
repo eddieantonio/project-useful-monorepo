@@ -79,6 +79,9 @@ the `project_antipatterns` package.
  - **PEM category**: a collection of clustered programming error messages.
    These somewhat correspond to the javac's internal error IDs, however there
    some of these IDs have been broken down into multiple categories.
+ - **variant**: one of **`javac`**, **Decaf**, **GPT-4 (error-only)**, or
+   **GPT-4 (with code context)**
+ - **rater**: an expert in charge of rating error messages
 
 # Copyright
 
