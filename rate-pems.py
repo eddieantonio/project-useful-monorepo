@@ -14,14 +14,17 @@ DESCRIPTION:
 
 OUTPUT:
     answers.sqlite3 -- the recorded answers for each scenario and variant
+    assignnments.tsv -- a list of "assigned" scenarios for each rater
 
 SEE ALSO
     pickle-sample.py -- creates sample.pickle
     pickle-llm-results.py -- creates llm.pickle
 """
 
+from itertools import groupby
 import os
 import pickle
+import sys
 import textwrap
 from typing import Any, Dict, Literal, Sequence, TypedDict
 from pathlib import Path
@@ -49,6 +52,7 @@ terminal_formatter = TerminalFormatter()
 
 
 HERE = Path(__file__).parent.resolve()
+ALL_VARIANTS = ("javac", "decaf", "gpt-4-error-only", "gpt-4-with-context")
 
 ### Types ###
 
@@ -409,13 +413,24 @@ def ask_questions_for_current_variant() -> Answers:
     return answers
 
 
+def by_unit(assignment):
+    "Key function for grouping assignments by unit/scenario."
+    srcml_path, version, _variant = assignment
+    return srcml_path, version
+
+
 ### The script starts here ###
 
-with open(HERE / "sample.pickle", "rb") as f:
-    ALL_SCENARIOS = pickle.load(f)
+with open(HERE / "sample.pickle", "rb") as sample_file:
+    _ALL_SCENARIOS = pickle.load(sample_file)
 
-with open(HERE / "llm.pickle", "rb") as f:
-    LLM_RESULTS = pickle.load(f)
+ALL_SCENARIOS = {
+    (scenario["xml_filename"], scenario["version"]): scenario
+    for scenario in _ALL_SCENARIOS
+}
+
+with open(HERE / "llm.pickle", "rb") as llm_file:
+    LLM_RESULTS = pickle.load(llm_file)
 
 GPT4_CODE_ONLY_RESPONSES = LLM_RESULTS["error_only"]
 GPT4_CONTEXTUAL_RESPONSES = LLM_RESULTS["code_and_context"]
@@ -439,8 +454,6 @@ answers_table = db["answers"].create(  # type: ignore
     pk=("srcml_path", "version", "variant", "rater"),
     if_not_exists=True,
 )
-# TODO: figure out the assignments
-# TODO: fetch all the of answers, create a set, then remove items from the assignments
 
 # Get rater's name from their username:
 ALLOWED_USERS = ("eddie", "brett", "prajish")
@@ -450,6 +463,35 @@ if username not in ALLOWED_USERS:
 else:
     rater = username
 
+# Find all scenarios assigned to this rater.
+assignments = set()
+with open("assignments.tsv") as assignments_file:
+    for line in assignments_file:
+        _pem_category, srcml_path, version = line.strip().split("\t")
+        for variant in ALL_VARIANTS:
+            assignments.add((srcml_path, version, variant))
+
+# Figure out which assignments need answers.
+answered = set(
+    db.execute(
+        "SELECT srcml_path, version, variant FROM answers WHERE rater = ?", (rater,)
+    ).fetchall()
+)
+needs_answers = assignments - answered
+
+# Do the actual rating!
+for (srcml_path, version), group in groupby(needs_answers, by_unit):
+    variants_needed = [x[2] for x in group]
+    scenario = ALL_SCENARIOS[(srcml_path, version)]
+    try:
+        ask_about_scenario(scenario, variants_needed)  # type: ignore
+    except RaterQuitException:
+        print("See you next time!")
+        sys.exit(0)
+
+print("You've done it! You have rated all the messages! 🎉")
+
+# fetch all the of answers, create a set, then remove items from the assignments
 
 ## TODO: MESSY TESTING STUFF HERE:
 # TODO: expand this for all scenarios
@@ -465,5 +507,5 @@ else:
 # print(f"ALL_SCENARIOS[{i}]")
 ## ask_about_scenario(scenario, ["javac", "gpt-4-error-only", "gpt-4-with-context"])
 # ask_about_scenario(scenario, ["gpt-4-error-only"])
-ask_about_scenario(ALL_SCENARIOS[0], ["javac"])
+# ask_about_scenario(ALL_SCENARIOS[0], ["javac"])
 # print(ALL_SCENARIOS[0])
