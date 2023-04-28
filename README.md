@@ -5,13 +5,11 @@ for fun, and half because I lack creativity.
 
 This borrows from the data collected from [project-antipatterns].
 
-Note: **PEM** = **Programming Error Message**
+# Installation Requirements
 
-# Requirements
-
- - Python 3.8+. I use Python 3.8 on white and Python 3.11 on my own
-   laptop.
- - Poetry
+ - Python 3.8+. I use Python 3.8 on the Blackbox server and Python 3.11
+   on my own laptop.
+ - [Poetry](https://python-poetry.org/docs/#installation)
 
 # Install
 
@@ -23,6 +21,27 @@ The only scripts that **require** external Python dependencies (and hence, requi
 
  - `enhance-using-llms.py`
  - `rate-pems.py`
+
+# Using `rate-pems.py`
+
+Note, you will need to run `poetry install` to make this work (see
+above).
+
+You will need the following files in your current working directory:
+
+ - `sample.pickle`
+ - `llm.pickle`
+ - `assignnments.tsv`
+
+> [!NOTE] 2023-04-28; I will likely require different files in the
+> following days.
+
+Then to run `rate-pems.py`, you can use the following command:
+
+    poetry run python3 rate-pems.py
+
+You should be presented with a source code listing, and an error
+message, and a series of questions about that error message.
 
 # Utilities
 
@@ -61,7 +80,7 @@ collected during [project-antipatterns].
 
  - `rate-pems.py` is an interactive TUI application, intended to collect
    judgements about PEM quality.
-  
+
 
 # Other info
 

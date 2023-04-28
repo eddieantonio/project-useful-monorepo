@@ -188,6 +188,7 @@ def ask_about_scenario(scenario: Scenario, variants: Sequence[Variant]):
     # global variables :)
     global answers_table, rater
 
+    console.clear()
     print_source_code(scenario)
 
     for variant in variants:
