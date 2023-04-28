@@ -20,9 +20,12 @@ ENVIRONMENT VARIABLES:
 
 OUTPUTS:
     llm/ -- directory with JSON files
-        code-only/ -- NOTE! this should be called "error-only", but mistakes were made
-            {n}-{message_id}.json
-        code-and-context/
+        error-only/
+            {n}-{message_id}.json -- when the javac message is the same, no matter the context
+                OR
+            {n}-{message_id}/ -- when the javac message has placeholders
+                {k}-{src}-{version}.json
+        error-with-context/
             {n}-{message_id}/
                 {k}-{src}-{version}.json
 
@@ -125,10 +128,9 @@ with open("sample.pickle", "rb") as f:
 HERE = Path(__file__).parent.resolve()
 LLM_DIR = HERE / "llm"
 LLM_DIR.mkdir(exist_ok=True)
-# TODO: THESE NAMES ARE WRONG GAHHHHHHH!
-ERROR_ONLY_DIR = LLM_DIR / "code-only"
+ERROR_ONLY_DIR = LLM_DIR / "error-only"
 ERROR_ONLY_DIR.mkdir(exist_ok=True)
-ERROR_WITH_CONTEXT_DIR = LLM_DIR / "code-and-context"
+ERROR_WITH_CONTEXT_DIR = LLM_DIR / "error-with-context"
 ERROR_WITH_CONTEXT_DIR.mkdir(exist_ok=True)
 
 
@@ -140,7 +142,7 @@ def collect_error_only_responses() -> None:
     """
     Collect responses from OpenAI for **JUST** the error messages.
 
-    This requires far fewer API calls than collecting responses for the code and context.
+    This requires fewer API calls than collecting responses for the error with context.
     """
 
     for n, k, category, scenario in tqdm(
@@ -182,7 +184,7 @@ def collect_error_only_responses() -> None:
             # Provide enough information to reconstruct the original scenario:
             json.dump(
                 dict(
-                    type="code-and-context",
+                    type="error-with-context",
                     # Although these results are (sort of) independent of the exact
                     # source file and error, it's useful to know exactly which file
                     # induced this error, particularly for the error messages that have
@@ -197,16 +199,9 @@ def collect_error_only_responses() -> None:
             )
 
 
-# TODO: FIX THIS! BRAIN FART WITH THE NAMES
-# I accidentally the json files...
-# type="code-and-context" should be "error-only"
-# type="code-only" should be "error-with-context"
-# DERP.
-
-
-def collect_code_and_context_responses() -> None:
+def collect_error_with_context_responses() -> None:
     """
-    Collect responses from OpenAI for the code and context.
+    Collect responses from OpenAI for the error messages with its code context.
     """
 
     for n, k, category, scenario in tqdm(
@@ -251,7 +246,7 @@ def collect_code_and_context_responses() -> None:
             # Provide enough information to reconstruct the original scenario:
             json.dump(
                 dict(
-                    type="code-only",
+                    type="error-only",
                     # Although these results are (sort of) independent of the exact source file and error,
                     # it's useful to know exactly which file induced this error, particularly for the
                     # error messages that have an identifier in them, e.g., cannot find symbol  -  variable foo
@@ -283,5 +278,5 @@ def numbererd_scenarios():
 if __name__ == "__main__":
     # Collect responses for error-only prompts
     collect_error_only_responses()
-    # Collect responses for code and context prompts
-    collect_code_and_context_responses()
+    # Collect responses for error with context prompts
+    collect_error_with_context_responses()

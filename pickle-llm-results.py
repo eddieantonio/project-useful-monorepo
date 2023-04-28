@@ -29,9 +29,8 @@ from pathlib import Path
 
 # Where we can find the data:
 HERE = Path(__file__).parent
-# TODO: change these to use the correct names (see fix-brain-fart.py)
-ERROR_ONLY = HERE / "llm" / "code-only"
-CODE_AND_CONTEXT_ONLY = HERE / "llm" / "code-and-context"
+ERROR_ONLY = HERE / "llm" / "error-only"
+CODE_AND_CONTEXT_ONLY = HERE / "llm" / "error-with-context"
 
 # We will store the full JSON in a dictionary, but for the purposes of rating
 # PEMs, this data is superfluous.
@@ -40,7 +39,7 @@ raw = {
     "code_and_context": {},
 }
 
-# Load the GPT-4 (code-only) error messages:
+# Load the GPT-4 (error-only) error messages:
 # This maps PEM category to plain text (which can be interpreted as Markdown)
 error_only_messages = {}
 error_only_messages_by_scenario = {}
