@@ -30,13 +30,13 @@ SEE ALSO:
     pickle-llm-results.py -- pickle the directory structure in one easy-to-share file!
 """
 
-import os
-import sys
-import pickle
 import json
 import logging
-from pathlib import Path, PurePosixPath
+import os
+import pickle
+import sys
 from itertools import groupby
+from pathlib import Path, PurePosixPath
 
 import openai
 from dotenv import load_dotenv
@@ -67,6 +67,28 @@ except KeyError:
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+# All PEM categories whose messages have placeholders and are thus, context-sensitive.
+CATEGORIES_WITH_PLACEHOLDERS = [
+    # "cannot find symbol - variable <x>"
+    "compiler.err.cant.resolve[variable]",
+    # NOTE: BlueJ actually enhances THESE messages, so they are not strictkly javac
+    # error messages:
+    # "cannot find symbol -   method <x>)[; maybe you meant: <y>]"
+    "compiler.err.cant.resolve[method]",
+    # cannot find symbol -   class <x>
+    "compiler.err.cant.resolve[class]",
+    # "incompatible types: <x> cannot be converted to <y>"
+    # or
+    # "incompatible types: unexpected return value"
+    "compiler.err.prob.found.req",
+    # "<construct> <name> in <scope> cannot be applied to given types; ..."
+    "compiler.err.cant.apply.symbol",
+    # "package <Y>.util does not exist"
+    "compiler.err.doesnt.exist",
+    # "variable <X> is already defined in <y>"
+    "compiler.err.already.defined[variable]",
+]
 
 
 def make_prompt_with_context(code: str, error: JavaCompilerError) -> str:
@@ -103,10 +125,11 @@ with open("sample.pickle", "rb") as f:
 HERE = Path(__file__).parent.resolve()
 LLM_DIR = HERE / "llm"
 LLM_DIR.mkdir(exist_ok=True)
-CODE_ONLY_DIR = LLM_DIR / "code-only"
-CODE_ONLY_DIR.mkdir(exist_ok=True)
-CODE_AND_CONTEXT_DIR = LLM_DIR / "code-and-context"
-CODE_AND_CONTEXT_DIR.mkdir(exist_ok=True)
+# TODO: THESE NAMES ARE WRONG GAHHHHHHH!
+ERROR_ONLY_DIR = LLM_DIR / "code-only"
+ERROR_ONLY_DIR.mkdir(exist_ok=True)
+ERROR_WITH_CONTEXT_DIR = LLM_DIR / "code-and-context"
+ERROR_WITH_CONTEXT_DIR.mkdir(exist_ok=True)
 
 
 def by_pem_category(scenario):
@@ -115,19 +138,34 @@ def by_pem_category(scenario):
 
 def collect_error_only_responses() -> None:
     """
-    Collect resposnes from OpenAI for **JUST** the error messages.
+    Collect responses from OpenAI for **JUST** the error messages.
 
     This requires far fewer API calls than collecting responses for the code and context.
     """
-    for n, (category, group) in tqdm(
-        enumerate(groupby(ALL_SCENARIOS, key=by_pem_category), start=1)
+
+    for n, k, category, scenario in tqdm(
+        numbererd_scenarios(), total=len(ALL_SCENARIOS)
     ):
-        json_filename = f"{n:02d}-{category}.json"
-        scenario = next(group)
-        pem = scenario["unit"].pems[0]
         # Annoyingly, I started calling the scrml_path "xml_filename" while creating a sample:
         srcml_path = scenario["xml_filename"]
         version = scenario["version"]
+
+        # Figure out the name first.
+        category_name = f"{n:02d}-{category}"
+        if category in CATEGORIES_WITH_PLACEHOLDERS:
+            subdirectory = ERROR_ONLY_DIR / category_name
+            subdirectory.mkdir(exist_ok=True)
+            base_srcml_name = PurePosixPath(srcml_path).stem
+            json_path = subdirectory / f"{k:02d}-{base_srcml_name}-{version}.json"
+        else:
+            json_filename = f"{category_name}.json"
+            json_path = ERROR_ONLY_DIR / json_filename
+
+        # Skip if we've already collected this response:
+        if json_path.exists():
+            continue
+
+        pem = scenario["unit"].pems[0]
 
         request = dict(
             model=MODEL,
@@ -137,16 +175,18 @@ def collect_error_only_responses() -> None:
             ],
             temperature=0,
         )
+
         response = openai.ChatCompletion.create(**request)
 
-        with open(CODE_ONLY_DIR / json_filename, "w") as json_file:
+        with json_path.open(mode="w") as json_file:
             # Provide enough information to reconstruct the original scenario:
             json.dump(
                 dict(
                     type="code-and-context",
-                    # Although these results are (sort of) independent of the exact source file and error,
-                    # it's useful to know exactly which file induced this error, particularly for the
-                    # error messages that have an identifier in them, e.g., cannot find symbol  -  variable foo
+                    # Although these results are (sort of) independent of the exact
+                    # source file and error, it's useful to know exactly which file
+                    # induced this error, particularly for the error messages that have
+                    # an identifier in them, e.g., cannot find symbol  -  variable foo
                     srcml_path=srcml_path,
                     version=version,
                     pem_category=category,
@@ -157,24 +197,17 @@ def collect_error_only_responses() -> None:
             )
 
 
+# TODO: FIX THIS! BRAIN FART WITH THE NAMES
+# I accidentally the json files...
+# type="code-and-context" should be "error-only"
+# type="code-only" should be "error-with-context"
+# DERP.
+
+
 def collect_code_and_context_responses() -> None:
     """
     Collect responses from OpenAI for the code and context.
     """
-
-    def numbererd_scenarios():
-        """
-        Yield all scenarios. Each scenario includes its error message category,
-        its rank (n) and the scenario's index within its category (k).
-
-        I factored this out as a generator, because, although this could all
-        be done in a single for loop, you don't want to see what that looks like!
-        """
-        for n, (category, group) in enumerate(
-            groupby(ALL_SCENARIOS, key=by_pem_category), start=1
-        ):
-            for k, scenario in enumerate(group, start=1):
-                yield n, k, category, scenario
 
     for n, k, category, scenario in tqdm(
         numbererd_scenarios(), total=len(ALL_SCENARIOS)
@@ -186,7 +219,7 @@ def collect_code_and_context_responses() -> None:
         version = scenario["version"]
 
         subdirectory_name = f"{n:02d}-{category}"
-        subdirectory = CODE_AND_CONTEXT_DIR / subdirectory_name
+        subdirectory = ERROR_WITH_CONTEXT_DIR / subdirectory_name
         subdirectory.mkdir(exist_ok=True)
 
         base_srcml_name = PurePosixPath(srcml_path).stem
@@ -232,13 +265,23 @@ def collect_code_and_context_responses() -> None:
             )
 
 
-# Collect responses for code-only prompts
-# When the marker exists, we assume that the responses have already been collected.
-marker = CODE_ONLY_DIR / ".finished-querying"
-if not marker.exists():
-    collect_error_only_responses()
-    marker.touch()
+def numbererd_scenarios():
+    """
+    Yield all scenarios. Each scenario includes its error message category,
+    its rank (n) and the scenario's index within its category (k).
 
-# Collect responses for code and context prompts
-collect_code_and_context_responses()
-# TODO: use sets to confirm which scenarios have been completed and which still need to be queried.
+    I factored this out as a generator, because, although this could all
+    be done in a single for loop, you don't want to see what that looks like!
+    """
+    for n, (category, group) in enumerate(
+        groupby(ALL_SCENARIOS, key=by_pem_category), start=1
+    ):
+        for k, scenario in enumerate(group, start=1):
+            yield n, k, category, scenario
+
+
+if __name__ == "__main__":
+    # Collect responses for error-only prompts
+    collect_error_only_responses()
+    # Collect responses for code and context prompts
+    collect_code_and_context_responses()
