@@ -501,20 +501,3 @@ for srcml_path, version, variants in assignments_grouped_by_unit(needs_answers):
         sys.exit(0)
 
 print("You've done it! You have rated all the messages! 🎉")
-
-## TODO: MESSY TESTING STUFF HERE:
-# TODO: expand this for all scenarios
-# scenario = [
-#    s
-#    for s in ALL_SCENARIOS
-#    # This PEM is intersting because the ')' expected message makes very little sense:
-#    if s["xml_filename"] == "/data/mini/srcml-2018-06/project-12826519/src-61952797.xml"
-#    and s["version"] == "2495882730"
-# ][0]
-# import random
-# i, scenario = random.choice(list(enumerate(ALL_SCENARIOS)))
-# print(f"ALL_SCENARIOS[{i}]")
-## ask_about_scenario(scenario, ["javac", "gpt-4-error-only", "gpt-4-with-context"])
-# ask_about_scenario(scenario, ["gpt-4-error-only"])
-# ask_about_scenario(ALL_SCENARIOS[0], ["javac"])
-# print(ALL_SCENARIOS[0])
