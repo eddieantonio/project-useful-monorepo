@@ -29,6 +29,7 @@ from pathlib import Path
 
 # Where we can find the data:
 HERE = Path(__file__).parent
+# TODO: change these to use the correct names (see fix-brain-fart.py)
 ERROR_ONLY = HERE / "llm" / "code-only"
 CODE_AND_CONTEXT_ONLY = HERE / "llm" / "code-and-context"
 
@@ -42,15 +43,20 @@ raw = {
 # Load the GPT-4 (code-only) error messages:
 # This maps PEM category to plain text (which can be interpreted as Markdown)
 error_only_messages = {}
+error_only_messages_by_scenario = {}
 
-for json_path in ERROR_ONLY.glob("*.json"):
+for json_path in ERROR_ONLY.glob("**/*.json"):
     with json_path.open() as json_file:
         data = json.load(json_file)
 
     pem_category = data["pem_category"]
+    srcml_path = data["srcml_path"]
+    version = data["version"]
     text = data["response"]["choices"][0]["message"]["content"]
 
-    raw["error_only"][pem_category] = data
+    raw["code_and_context"][(srcml_path, version)] = data
+    error_only_messages_by_scenario[(srcml_path, version)] = text
+    # Consider this an "exemplar" for its PEM category:
     error_only_messages[pem_category] = text
 
 # Load GPT-4 (code and context) error messages:
@@ -72,6 +78,7 @@ with open("llm.pickle", "wb") as f:
     pickle.dump(
         {
             "error_only": error_only_messages,
+            "error_only_by_scenario": error_only_messages_by_scenario,
             "code_and_context": code_and_data_messages,
             "_raw": raw,
         },

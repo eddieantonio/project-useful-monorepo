@@ -37,3 +37,5 @@ for json_path in ERROR_ONLY_DIR.glob("**/*.json"):
     data["type"] = "error-with-context"
     with open(json_path, "w") as f:
         json.dump(data, f)
+
+# I will also manually change the names of the directories, because they are ridiculous
