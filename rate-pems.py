@@ -258,19 +258,24 @@ def ask_about_variant_once(scenario, variant: Variant) -> Answers:
         console.print(md)
         print()
 
+    # I know, I know, it should be "srcml_path", but I accidentally
+    # changed it to "xml_filename" in sample.pickle, so here we are:
+    scenario_id = (scenario["xml_filename"], scenario["version"])
+
     if variant == "javac":
         message = javac_error_message
         print(javac_error_message)
     elif variant == "gpt-4-error-only":
-        message = GPT4_CODE_ONLY_RESPONSES[scenario["pem_category"]]
+        # Try getting the message for the specific scenario first...
+        message = GPT4_ERROR_ONLY_RESPONSES.get(scenario_id)
+        # ...if that fails, get the generic response applicable to all messages in the
+        # category:
+        if message is None:
+            message = GPT4_ERROR_ONLY_GENERIC_RESPONSES[scenario["pem_category"]]
         md = Markdown(message)
         console.print(md)
     elif variant == "gpt-4-with-context":
-        message = GPT4_CONTEXTUAL_RESPONSES.get(
-            # I know, I know, it should be "srcml_path", but I accidentally
-            # changed it to "xml_filename" in the pickle, so here we are:
-            (scenario["xml_filename"], scenario["version"])
-        )
+        message = GPT4_CONTEXTUAL_RESPONSES.get(scenario_id)
         if message is None:
             raise EnhancedMessageDoesNotExistException(
                 "The source code context was too large to query GPT-4."
@@ -429,7 +434,8 @@ ALL_SCENARIOS = {
 with open(HERE / "llm.pickle", "rb") as llm_file:
     LLM_RESULTS = pickle.load(llm_file)
 
-GPT4_CODE_ONLY_RESPONSES = LLM_RESULTS["error_only"]
+GPT4_ERROR_ONLY_GENERIC_RESPONSES = LLM_RESULTS["error_only"]
+GPT4_ERROR_ONLY_RESPONSES = LLM_RESULTS["error_only_by_scenario"]
 GPT4_CONTEXTUAL_RESPONSES = LLM_RESULTS["code_and_context"]
 
 # Set up the database.
