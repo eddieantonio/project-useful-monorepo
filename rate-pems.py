@@ -256,7 +256,8 @@ def ask_about_variant_once(scenario, variant: Variant) -> Answers:
     # Show the original javac message for reference:
     if variant in ("gpt-4-error-only", "gpt-4-with-context"):
         print("[grey62 italic]Note: This is the original javac error message:")
-        message_as_md_quote = textwrap.indent(javac_error_message, "> ")
+        markdown_safe = javac_error_message.replace("<", "\<").replace(">", "\>")
+        message_as_md_quote = textwrap.indent(markdown_safe, "> ")
         md = Markdown(message_as_md_quote)
         console.print(md)
         print()
