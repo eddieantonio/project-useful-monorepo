@@ -31,10 +31,8 @@ You will need the following files in your current working directory:
 
  - `sample.pickle`
  - `llm.pickle`
- - `assignnments.tsv`
-
-> [!NOTE] 2023-04-28; I will likely require different files in the
-> following days.
+ - `decaf.pickle`
+ - `{yourname}-assignnments.tsv`
 
 Then to run `rate-pems.py`, you can use the following command:
 

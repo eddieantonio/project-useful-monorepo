@@ -7,7 +7,8 @@ REQUIREMENTS:
     sample.pickle -- a sample of scenarios from Blackbox Mini
     decaf.pickle -- enhanced error messages from Decaf
     llm.pickle -- enhanced error messages from GPT-4
-    assignnments.tsv -- a list of "assigned" scenarios for each rater
+    {rater}-assignnments.tsv -- a list of assigned scenarios for each rater
+                                where {rater} is your name!
 
 DESCRIPTION:
     This will ask the user to rate programming error messages from javac,
@@ -20,6 +21,7 @@ OUTPUT:
 SEE ALSO
     pickle-sample.py -- creates sample.pickle
     pickle-llm-results.py -- creates llm.pickle
+    create-assignments.py -- creates *-assignments.tsv for every rater
 """
 
 import os
@@ -479,7 +481,7 @@ else:
 
 # Find all scenarios assigned to this rater.
 assignments = set()
-with open("assignments.tsv") as assignments_file:
+with open(f"{rater}-assignments.tsv") as assignments_file:
     for line in assignments_file:
         _pem_category, srcml_path, version = line.strip().split("\t")
         for variant in ALL_VARIANTS:

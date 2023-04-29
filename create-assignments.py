@@ -8,7 +8,8 @@ REQUIREMENTS:
 
 DESCRIPTION:
     This will partition the scenarios such that each scenario is assigned to at
-    least 2 raters.
+    least 2 raters. Each rater will see at least one scenario from each PEM category.
+    That is, scenarios from each category will be distributed evenly across raters.
 
 ENVIRONMENT VARIABLES:
     OPENAI_API_KEY -- a valid API key for OpenAI. Hint! Store this in the .env file!
@@ -28,7 +29,7 @@ K = 3
 
 # How many scenarios will be evaluated in total:
 TOTAL = TOP_N * K
-assert TOTAL % 3 == 0, "Total scenarios must be divisible by 3 raters"
+assert K % 3 == 0, "Number of scenarios per category must be divisible by 3 raters"
 
 # Top PEM categories, in order from most frequent to least frequent
 TOP_ERRORS = [
@@ -62,22 +63,31 @@ scenarios = defaultdict(list)
 for scenario in ALL_SCENARIOS:
     scenarios[scenario["pem_category"]].append(scenario)
 
-# Retain only the top K scenarios from each category
-assigned_scenarios = []
+# Time to assign scenarios to raters!
+rater1 = []
+rater2 = []
+rater3 = []
 for category in TOP_ERRORS[:TOP_N]:
-    assigned_scenarios.extend(scenarios[category][:K])
-
-assert len(assigned_scenarios) == TOTAL
+    # Retain only the top K scenarios from each category
+    for i, scenario in enumerate(scenarios[category][:K]):
+        # Rater 1 gets first 2/3
+        # Rater 2 gets last 2/3
+        # Rater 3 gets first 1/3 and last 1/3
+        third = i % 3
+        if third == 0:
+            rater1.append(scenario)
+            rater3.append(scenario)
+        elif third == 1:
+            rater1.append(scenario)
+            rater2.append(scenario)
+        else:
+            rater2.append(scenario)
+            rater3.append(scenario)
 
 ONE_THIRD = TOTAL // 3
-# Rater 1 gets first 2/3
-rater1 = assigned_scenarios[: 2 * ONE_THIRD]
-# Rater 2 gets last 2/3
-rater2 = assigned_scenarios[ONE_THIRD:]
-# Rater 3 gets first 1/3 and last 1/3
-rater3 = assigned_scenarios[:ONE_THIRD] + assigned_scenarios[2 * ONE_THIRD :]
 assert len(rater1) == len(rater2) == len(rater3) == ONE_THIRD * 2
 
+# Save them out:
 for assignments, name in zip([rater1, rater2, rater3], ["eddie", "prajish", "brett"]):
     with open(f"{name}-assignments.tsv", "w") as f:
         for scenario in assignments:
