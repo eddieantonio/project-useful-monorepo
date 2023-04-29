@@ -5,6 +5,7 @@ rate-pems.py -- rate programming error messages
 
 REQUIREMENTS:
     sample.pickle -- a sample of scenarios from Blackbox Mini
+    decaf.pickle -- enhanced error messages from Decaf
     llm.pickle -- enhanced error messages from GPT-4
     assignnments.tsv -- a list of "assigned" scenarios for each rater
 
@@ -193,7 +194,6 @@ def ask_about_scenario(scenario: Scenario, variants: Sequence[Variant]):
 
     for variant in variants:
         print()
-        # TODO: handle rater quit exception
         try:
             answers = ask_about_variant(scenario, variant)
         except EnhancedMessageDoesNotExistException:
@@ -229,6 +229,7 @@ def ask_about_variant(scenario, variant: Variant) -> Answers:
         ).ask()
 
         if answers_confirmed is None:
+            # The rater hit Ctrl+C or Ctrl+D:
             raise RaterQuitException
 
         if answers_confirmed:
@@ -251,7 +252,7 @@ def ask_about_variant_once(scenario, variant: Variant) -> Answers:
     javac_error_message = unit.pems[0].fixed_error_message_text
 
     # Show the original javac message for reference:
-    if variant in ("decaf", "gpt-4-error-only", "gpt-4-with-context"):
+    if variant in ("gpt-4-error-only", "gpt-4-with-context"):
         print("[grey62 italic]Note: This is the original javac error message:")
         message_as_md_quote = textwrap.indent(javac_error_message, "> ")
         md = Markdown(message_as_md_quote)
@@ -283,7 +284,14 @@ def ask_about_variant_once(scenario, variant: Variant) -> Answers:
         md = Markdown(message)
         console.print(md)
     elif variant == "decaf":
-        raise NotImplementedError("Don't have Decaf PEMs yet")
+        message = DECAF_RESPONSES.get(scenario_id)
+        if message is None:
+            raise EnhancedMessageDoesNotExistException(
+                "Decaf crashed while trying to enhance this message."
+            )
+
+        md = Markdown(message)
+        console.print(md)
     else:
         raise ValueError(f"Unknown configuration: {variant!r}")
 
@@ -437,6 +445,9 @@ with open(HERE / "llm.pickle", "rb") as llm_file:
 GPT4_ERROR_ONLY_GENERIC_RESPONSES = LLM_RESULTS["error_only"]
 GPT4_ERROR_ONLY_RESPONSES = LLM_RESULTS["error_only_by_scenario"]
 GPT4_CONTEXTUAL_RESPONSES = LLM_RESULTS["code_and_context"]
+
+with open(HERE / "decaf.pickle", "rb") as decaf_file:
+    DECAF_RESPONSES = pickle.load(decaf_file)
 
 # Set up the database.
 db = Database("answers.sqlite3")
