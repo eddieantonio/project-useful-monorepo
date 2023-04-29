@@ -22,3 +22,4 @@ __pycache__/
 
 # The data structures that the OpenAI API stuff creates:
 llm/
+decaf-cli.jar

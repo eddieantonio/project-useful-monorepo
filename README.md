@@ -75,6 +75,11 @@ collected during [project-antipatterns].
  - `pickle-llm-results.py` -- takes the `llm/` directory structure,
    and creates `llm.pickle`, which is a much more easy-to-use version
    of the same information.
+ - `enhance-using-decaf.py` -- reads `sample.pickle` and enhances the error
+    messages using the Decaf CLI. The output is `decaf.pickle`.
+    You will need the `decaf-cli.jar`, obtainable [here][decaf-cli].
+
+[decaf-cli]: https://github.com/eddieantonio/decaf/releases/tag/v3.3-cli
 
 # Interactive scripts
 
