@@ -329,9 +329,9 @@ def ask_questions_for_current_variant() -> Answers:
         sentence_structure=questionary.select(
             "Is this error message presented in well-structured sentences?",
             choices=[
-                Choice(title="Clear, understandable sentences", value="clear"),
-                Choice(title="Could be clearer", value="could-be-clearer"),
                 Choice(title="Unclear, does not use full sentences", value="unclear"),
+                Choice(title="Could be clearer", value="could-be-clearer"),
+                Choice(title="Clear, understandable sentences", value="clear"),
             ],
         ).unsafe_ask(),
     )
@@ -340,7 +340,7 @@ def ask_questions_for_current_variant() -> Answers:
     # Leinonen et al. 2023 -- LLMs for PEMs
     answers.update(
         explanation=questionary.confirm(
-            "Does this message provide an explanation for the error?",
+            "Does this message provide an explanation for the error?", default=False
         ).unsafe_ask()
     )
 
@@ -349,11 +349,11 @@ def ask_questions_for_current_variant() -> Answers:
             explanation_correctness=questionary.select(
                 "Is the explanation correct for this code context?",
                 choices=[
+                    Choice(title="It is definitely wrong", value="no"),
+                    Choice(title="Maybe/Depends on programmer's intent", value="maybe"),
                     Choice(
                         title="It is unmistakably correct for this code", value="yes"
                     ),
-                    Choice(title="Maybe/Depends on programmer's intent", value="maybe"),
-                    Choice(title="It is definitely wrong", value="no"),
                 ],
             ).unsafe_ask()
         )
@@ -365,11 +365,11 @@ def ask_questions_for_current_variant() -> Answers:
             explanation_maybe=questionary.select(
                 "Why might the explanation be maybe correct?",
                 choices=[
-                    Choice(title="The programmer's intent is unclear", value="unclear"),
                     Choice(
-                        title="The error is a one-sided conflict",
+                        title="There might be mulitple places to fix it (one-sided conflict)",
                         value="one-sided-conflict",
                     ),
+                    Choice(title="The programmer's intent is unclear", value="unclear"),
                     Choice(title="Other (explain in notes)", value="other"),
                 ],
             ).unsafe_ask()
@@ -381,18 +381,18 @@ def ask_questions_for_current_variant() -> Answers:
         fix=questionary.select(
             "Does it provide a fix?",
             choices=[
-                Choice(
-                    title="A specific fix is confidently provided", value="confident"
-                ),
-                Choice(
-                    title="A fix or hint is given, but it is not asserted to be correct",
-                    value="hint",
-                ),
-                Choice(title="A generic fix is provided", value="generic"),
+                Choice(title="No clear fix given", value="no"),
                 Choice(
                     title="A fix is implied or suggested", value="implicit-suggestion"
                 ),
-                Choice(title="No clear fix given", value="no"),
+                Choice(title="A generic fix is provided", value="generic"),
+                Choice(
+                    title="A specific fix or hint is given, but it is not asserted to be correct",
+                    value="hint",
+                ),
+                Choice(
+                    title="A specific fix is confidently provided", value="confident"
+                ),
             ],
         ).unsafe_ask(),
     )
@@ -402,12 +402,12 @@ def ask_questions_for_current_variant() -> Answers:
             fix_correctness=questionary.select(
                 "Is the fix correct for this code context?",
                 choices=[
-                    Choice(title="Yes", value="yes"),
+                    Choice(title="No", value="no"),
                     Choice(
                         title="Maybe/Depends on programmer's intent/other",
                         value="maybe",
                     ),
-                    Choice(title="No", value="no"),
+                    Choice(title="Yes", value="yes"),
                 ],
             ).ask(),
         )
@@ -418,9 +418,9 @@ def ask_questions_for_current_variant() -> Answers:
         additional_errors=questionary.select(
             "Did it find additional errors?",
             choices=[
-                Choice(title="Yes", value="yes"),
-                Choice(title="Maybe", value="maybe"),
                 Choice(title="No", value="no"),
+                Choice(title="Maybe", value="maybe"),
+                Choice(title="Yes", value="yes"),
             ],
         ).unsafe_ask(),
         notes=questionary.text(
