@@ -185,7 +185,7 @@ def ask_about_scenario(scenario: Scenario, variants: Sequence[Variant]):
      - javac (control)
      - gpt-4-error-only -- enhance only the error message text
      - gpt-4-with-context -- enhance the error message text with code context
-     - decaf -- (not yet implemented!)
+     - decaf
     """
     # This statement is not necessary, but is here to document that I'm abusing
     # global variables :)

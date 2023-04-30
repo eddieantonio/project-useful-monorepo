@@ -11,16 +11,12 @@ DESCRIPTION:
     least 2 raters. Each rater will see at least one scenario from each PEM category.
     That is, scenarios from each category will be distributed evenly across raters.
 
-ENVIRONMENT VARIABLES:
-    OPENAI_API_KEY -- a valid API key for OpenAI. Hint! Store this in the .env file!
-
 OUTPUTS:
     {rater}-assignments.tsv
 """
 
 import pickle
 from collections import defaultdict
-
 
 # How many of the top PEMs should we collect
 TOP_N = 5

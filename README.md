@@ -66,16 +66,17 @@ collected during [project-antipatterns].
    This sample can be interpreted as a TSV file.
  - `pickle-sample.py` -- reads `sample.tsv` and collects source code and PEMs
    for all of the scenarios and stores them in `sample.pickle`.
-    **This file must be run on the Blackbox server!**
+   **This file must be run on the Blackbox server!**
  - `enhance-using-llm.py` -- reads `sample.pickle` and enhances the error
-    messages using the OpenAI API. **This script costs you money!**
-    The output is a messy directory structure called `llm/`.
+   messages using the OpenAI API. **This script costs you money!**
+   The output is a messy directory structure called `llm/`.
  - `pickle-llm-results.py` -- takes the `llm/` directory structure,
    and creates `llm.pickle`, which is a much more easy-to-use version
    of the same information.
  - `enhance-using-decaf.py` -- reads `sample.pickle` and enhances the error
-    messages using the Decaf CLI. The output is `decaf.pickle`.
-    You will need the `decaf-cli.jar`, obtainable [here][decaf-cli].
+   messages using the Decaf CLI. The output is `decaf.pickle`.
+   You will need the `decaf-cli.jar`, obtainable [here][decaf-cli].
+ - `create-assignments.py` -- assign PEMs for each rater to rate
 
 [decaf-cli]: https://github.com/eddieantonio/decaf/releases/tag/v3.3-cli
 
