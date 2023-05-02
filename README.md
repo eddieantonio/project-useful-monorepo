@@ -22,6 +22,10 @@ The only scripts that **require** external Python dependencies (and hence, requi
  - `enhance-using-llms.py`
  - `rate-pems.py`
 
+If you need to do data-analysis, you will also have to this:
+
+    $ poetry install --with data-analysis
+
 # Using `rate-pems.py`
 
 Note, you will need to run `poetry install` to make this work (see
