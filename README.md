@@ -77,6 +77,7 @@ collected during [project-antipatterns].
    messages using the Decaf CLI. The output is `decaf.pickle`.
    You will need the `decaf-cli.jar`, obtainable [here][decaf-cli].
  - `create-assignments.py` -- assign PEMs for each rater to rate
+ - `combine-answers.py` -- combine answers from all raters
 
 [decaf-cli]: https://github.com/eddieantonio/decaf/releases/tag/v3.3-cli
 
