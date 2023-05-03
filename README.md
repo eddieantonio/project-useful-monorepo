@@ -26,6 +26,12 @@ If you need to do data-analysis, you will also have to this:
 
     $ poetry install --with data-analysis
 
+**Recommended**: if you are committing `*.ipynb` files, you shouid install `nbstripout`:
+
+    $ poetry run nbstripout --install
+
+This must be run after running `poetry install --with data-analysis`
+
 # Using `rate-pems.py`
 
 Note, you will need to run `poetry install` to make this work (see
