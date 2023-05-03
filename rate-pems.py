@@ -31,6 +31,7 @@ import textwrap
 from itertools import groupby
 from pathlib import Path
 from typing import Any, Dict, Literal, Sequence, TypedDict
+import typing
 
 import questionary
 from pygments import highlight
@@ -45,6 +46,12 @@ from sqlite_utils import Database
 
 from blackbox_mini import JavaUnit
 
+### Constants ###
+
+HERE = Path(__file__).parent.resolve()
+# Change this to False to revert back to the old order:
+REVERSE_PRESENTATION_ORDER = True
+
 # Rich console for pretty-printing:
 console = Console()
 console.width = min(120, console.width)
@@ -54,14 +61,14 @@ java_lexer = JavaLexer(stripnl=False)
 terminal_formatter = TerminalFormatter()
 
 
-HERE = Path(__file__).parent.resolve()
-ALL_VARIANTS = ("javac", "decaf", "gpt-4-error-only", "gpt-4-with-context")
-
 ### Types ###
 
 # The four different error message variants:
 Variant = Literal["javac", "decaf", "gpt-4-error-only", "gpt-4-with-context"]
 Answers = Dict[str, int]
+
+# Get the variants from the type definition:
+ALL_VARIANTS = tuple(typing.get_args(Variant))
 
 
 class Scenario(TypedDict):
@@ -194,7 +201,9 @@ def ask_about_scenario(scenario: Scenario, variants: Sequence[Variant]):
     console.clear()
     print_source_code(scenario)
 
-    for variant in variants:
+    variants_to_rate = list(variants)
+    while len(variants_to_rate) > 0:
+        variant = variants_to_rate.pop(0)
         print()
         try:
             answers = ask_about_variant(scenario, variant)
@@ -203,15 +212,45 @@ def ask_about_scenario(scenario: Scenario, variants: Sequence[Variant]):
                 f"This error message does not exist for {variant}, so we're marking it as complete."
             )
             answers = {}
+        except RaterQuitException:
+            # Get ready for some exception-based control flow!
+            action = questionary.select(
+                message="What do you want to do?",
+                choices=[
+                    Choice(
+                        title=f"Restart rating this variant ({variant})",
+                        value="restart-variant",
+                    ),
+                    Choice(
+                        title="Restart rating the entire code context",
+                        value="restart-context",
+                    ),
+                    Choice(title="Save and quit", value="quit"),
+                ],
+            ).ask()
 
-        answers_table.insert(
+            if action == "restart-variant":
+                # Try this variant again:
+                variants_to_rate.insert(0, variant)
+                continue
+            elif action == "restart-context":
+                # Try ALL the variants again.
+                variants_to_rate = sorted_variants(ALL_VARIANTS)
+                continue
+            else:
+                print("Progress saved")
+                print("Goodbye for now!")
+                sys.exit(0)
+
+        answers_table.upsert(
             {
                 "srcml_path": scenario["xml_filename"],
                 "version": scenario["version"],
                 "variant": variant,
                 "rater": rater,
                 "answers": answers,
-            }
+            },
+            pk=["srcml_path", "version", "variant", "rater"],
         )
 
 
@@ -302,7 +341,7 @@ def ask_about_variant_once(scenario, variant: Variant) -> Answers:
     console.rule()
     try:
         answers = ask_questions_for_current_variant()
-    except (KeyboardInterrupt, EOFError):
+    except KeyboardInterrupt:
         raise RaterQuitException
 
     answers.update(length=len(message))
@@ -509,7 +548,16 @@ def assignments_grouped_by_unit(assignments):
 
     for (srcml_path, version), group in groupby(sorted(assignments), by_unit):
         variants = [x[2] for x in group]
-        yield srcml_path, version, sorted(variants, key=lambda x: ALL_VARIANTS.index(x))
+        yield srcml_path, version, sorted_variants(variants)
+
+
+def sorted_variants(variants: Sequence[Variant]):
+    "Returns variants sorted in the configured presentation order."
+    return sorted(
+        variants,
+        key=lambda x: ALL_VARIANTS.index(x),
+        reverse=REVERSE_PRESENTATION_ORDER,
+    )
 
 
 # Do the actual rating!
