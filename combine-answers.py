@@ -15,10 +15,10 @@ OUTPUTS:
 """
 
 import shutil
-from pathlib import Path
 import sqlite3
+from pathlib import Path
 
-N_RATERS = 2
+N_RATERS = 3
 N_RESPONSES = 40
 
 HERE = Path(__file__).parent
