@@ -19,9 +19,9 @@ import pickle
 from collections import defaultdict
 
 # How many of the top PEMs should we collect
-TOP_N = 5
+TOP_N = 10
 # How many of each category we should collect
-K = 3
+K = 9
 
 # How many scenarios will be evaluated in total:
 TOTAL = TOP_N * K
