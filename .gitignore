@@ -19,6 +19,7 @@ __pycache__/
 *.gz
 *.xz
 *.zip
+*.xlsx
 
 # The data structures that the OpenAI API stuff creates:
 llm/
