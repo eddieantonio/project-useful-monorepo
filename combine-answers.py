@@ -23,7 +23,6 @@ from pathlib import Path
 
 from assign_scenarios import create_assignments
 
-
 N_RATERS = 3
 N_RESPONSES = 40
 
@@ -47,7 +46,6 @@ answers_schema = conn.execute(
 answers_schema += ";"
 pilot_answers_schema = answers_schema.replace("[answers]", "[pilot_set_answers]", 1)
 schema = answers_schema + "\n" + pilot_answers_schema
-print(schema)
 conn.close()
 
 # Create the new database
