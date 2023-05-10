@@ -107,16 +107,22 @@ the `project_antipatterns` package.
 
 # Glossary
 
- - **scenario**: a _unit_ with at least one programming error message
-   produced by `javac`.
- - **unit**: a Java source code file at a particular version
- - **sample**: a random sample of eligible scenarios
+**NOTE**: a lot of this code says _scenario_ when I meant to say _context_!
+
+ - **unit**: a Java source code file from Blackbox Mini taken at a particular
+   _version_.
+ - **context**: (also _code context_) Java source code that produces at least
+   programming error message.
+ - **scenario**: a _context_ paired with a programming error message.
+   This programming error message could have been generated from one of the
+   four variants under examination.
+ - **sample**: a random sample of eligible _contexts_.
  - **PEM category**: a collection of clustered programming error messages.
    These somewhat correspond to the javac's internal error IDs, however there
    some of these IDs have been broken down into multiple categories.
  - **variant**: one of **`javac`**, **Decaf**, **GPT-4 (error-only)**, or
-   **GPT-4 (with code context)**
- - **rater**: an expert in charge of rating error messages
+   **GPT-4 (with code context)**.
+ - **rater**: an expert in charge of rating programming error messages.
 
 # Copyright
 
