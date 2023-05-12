@@ -30,6 +30,9 @@ with open("sample.tsv") as sample_tsv:
         sample_with_source_code.append(
             dict(
                 pem_category=pem_category,
+                # NOTE: [2023-05-11] This should be called "srcml_path", but it's too
+                # late to change it now. So whenever you see "xml_filename", just think
+                # "srcml_path" instead.
                 xml_filename=xml_filename,
                 version=version,
                 unit=unit,

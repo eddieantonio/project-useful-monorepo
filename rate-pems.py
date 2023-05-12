@@ -28,10 +28,10 @@ import os
 import pickle
 import sys
 import textwrap
+import typing
 from itertools import groupby
 from pathlib import Path
 from typing import Any, Dict, Literal, Sequence, TypedDict
-import typing
 
 import questionary
 from pygments import highlight
@@ -449,7 +449,7 @@ def ask_questions_for_current_variant() -> Answers:
                     ),
                     Choice(title="Yes", value="yes"),
                 ],
-            ).ask(),
+            ).unsafe_ask(),
         )
     else:
         answers.update(fix_correctness=None)

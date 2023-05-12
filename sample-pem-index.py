@@ -16,7 +16,7 @@ DESCRIPTION:
     output can be either
         a) saved as a .tsv; or
         b) copied pasted to be used with bbm-view on white.bluej.org.
-        
+
     The expected usage is to redirect the output to a file, and then use that
     file with `pickle-sample.py` on white.bluej.org:
 
