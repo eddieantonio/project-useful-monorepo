@@ -59,3 +59,23 @@ def agreement_as_label(kappa):
         labels.add("Excellent")
 
     return labels
+
+
+def landis_and_koch_label(kappa):
+    """
+    Gives a plain English label for the interpretation of Kappa.
+
+    Derived on Landis & Koch, 1977, who themselves state that the labels are arbitrary.
+    """
+    if 0 <= kappa < 0.2:
+        return "Slight"
+    elif 0.2 <= kappa < 0.4:
+        return "Fair"
+    elif 0.4 <= kappa < 0.6:
+        return "Moderate"
+    elif 0.6 <= kappa < 0.8:
+        return "Substantial"
+    elif 0.8 <= kappa <= 1:
+        return "Almost Perfect"
+
+    raise ValueError(f"Kappa out of range: {kappa}")
